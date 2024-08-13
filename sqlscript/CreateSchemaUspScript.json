@@ -1,6 +1,9 @@
 {
 	"name": "CreateSchemaUspScript",
 	"properties": {
+		"folder": {
+			"name": "DedicateDB_Queries"
+		},
 		"content": {
 			"query": "-- Drop the procedure if it exists\nIF OBJECT_ID('usp_CreateSchemas', 'P') IS NOT NULL\n    DROP PROCEDURE usp_CreateSchemas;\nGO\n\n-- Create the stored procedure\nCREATE PROCEDURE usp_CreateSchemas\nAS\nBEGIN\n    SET NOCOUNT ON;\n\n    -- Create the Dwh schema\n    IF NOT EXISTS (SELECT * FROM sys.schemas WHERE name = 'Dwh')\n    BEGIN\n        EXEC('CREATE SCHEMA Dwh');\n    END\n\n    -- Create the Staging schema\n    IF NOT EXISTS (SELECT * FROM sys.schemas WHERE name = 'Staging')\n    BEGIN\n        EXEC('CREATE SCHEMA Staging');\n    END\n\n    -- Create the Metadata schema. This schema is commented out as it is optional thus allowing decision to add them later.\n/**\n    IF NOT EXISTS (SELECT * FROM sys.schemas WHERE name = 'Metadata')\n    BEGIN\n        EXEC('CREATE SCHEMA Metadata');\n    END\n**/\nEND;",
 			"metadata": {

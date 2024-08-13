@@ -1,17 +1,17 @@
 {
-	"name": "SQL script 5",
+	"name": "SQL script 6",
 	"properties": {
 		"folder": {
 			"name": "DedicateDB_Queries"
 		},
 		"content": {
-			"query": "\n -- TODO: Set parameter values here \n\n EXECUTE [Dwh].[usp_InsertUnknownMembers]\n",
+			"query": "USE SalesDB\nGO\n\n",
 			"metadata": {
 				"language": "sql"
 			},
 			"currentConnection": {
-				"databaseName": "taxi",
-				"poolName": "taxi"
+				"databaseName": "SalesDB",
+				"poolName": "Built-in"
 			},
 			"resultLimit": 5000
 		},
