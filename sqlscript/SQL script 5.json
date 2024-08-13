@@ -1,0 +1,17 @@
+{
+	"name": "SQL script 5",
+	"properties": {
+		"content": {
+			"query": "\n -- TODO: Set parameter values here \n\n EXECUTE [Dwh].[usp_InsertUnknownMembers]\n",
+			"metadata": {
+				"language": "sql"
+			},
+			"currentConnection": {
+				"databaseName": "taxi",
+				"poolName": "taxi"
+			},
+			"resultLimit": 5000
+		},
+		"type": "SqlQuery"
+	}
+}
