@@ -1,0 +1,292 @@
+{
+	"name": "1_writeToDelta",
+	"properties": {
+		"folder": {
+			"name": "ECDS"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "esht",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "d843527f-ead5-48d4-9acc-0495bc02c3a6"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/f6e89fe8-0d17-497c-9795-5ecb2ab3bbcc/resourceGroups/SynapseRG/providers/Microsoft.Synapse/workspaces/ugolouis-synapse-ws/bigDataPools/esht",
+				"name": "esht",
+				"type": "Spark",
+				"endpoint": "https://ugolouis-synapse-ws.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/esht",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.4",
+				"nodeCount": 10,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Initial set up - declare variables and imports"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# complete imports\r\n",
+					"from pyspark.sql import SparkSession\r\n",
+					"from pyspark.sql.functions import col, when, current_timestamp, current_date\r\n",
+					"from delta.tables import DeltaTable"
+				],
+				"execution_count": 3
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# define variables\r\n",
+					"storage_account_name = \"synapsestr\"\r\n",
+					"container_name = \"nervecentre-data\"\r\n",
+					"delta_container_name = \"nervecentre-delta\"\r\n",
+					"source_relative_path = \"/ECDS_Accomodation_Type_vw.csv\"\r\n",
+					"target_relative_path = \"/ECDS_Accomodation_Type.csv\"\r\n",
+					"source_path = f'abfss://{container_name}@{storage_account_name}.dfs.core.windows.net{source_relative_path}'\r\n",
+					"target_path = f'abfss://{container_name}@{storage_account_name}.dfs.core.windows.net{target_relative_path}'\r\n",
+					"source_delta_path = f'abfss://{delta_container_name}@{storage_account_name}.dfs.core.windows.net/ECDS_Accomodation_Type_vw_delta'\r\n",
+					"target_delta_path = f'abfss://{delta_container_name}@{storage_account_name}.dfs.core.windows.net/ECDS_Accomodation_Type_delta'"
+				],
+				"execution_count": 4
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Processing ECDS Accomodation_Type SP"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"ms_comments": [],
+					"collapsed": false
+				},
+				"source": [
+					"# read source and target csv files\r\n",
+					"\r\n",
+					"# Step 1: Read the source CSV file\r\n",
+					"source_csv_df = spark.read.format(\"csv\") \\\r\n",
+					"              .option(\"header\", \"true\") \\\r\n",
+					"              .option(\"inferSchema\", \"true\") \\\r\n",
+					"              .load(source_path)\r\n",
+					"\r\n",
+					"# display(src_df)\r\n",
+					"\r\n",
+					"\r\n",
+					"# Step 2: Read the target CSV file\r\n",
+					"target_csv_df = spark.read.format(\"csv\") \\\r\n",
+					"              .option(\"header\", \"true\") \\\r\n",
+					"              .option(\"inferSchema\", \"true\") \\\r\n",
+					"              .load(target_path)\r\n",
+					""
+				],
+				"execution_count": 5
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Step 2: Read the target CSV file\r\n",
+					"target_csv_df = spark.read.format(\"csv\") \\\r\n",
+					"              .option(\"header\", \"true\") \\\r\n",
+					"              .option(\"inferSchema\", \"true\") \\\r\n",
+					"              .load(target_path)"
+				],
+				"execution_count": 6
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"\r\n",
+					"# Write the read CSV to Delta tables\r\n",
+					"source_csv_df.write.format(\"delta\").mode(\"overwrite\").save(source_delta_path)\r\n",
+					"target_csv_df.write.format(\"delta\").mode(\"overwrite\").save(target_delta_path)"
+				],
+				"execution_count": 7
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# target_table = DeltaTable.forPath(spark, target_delta_path)"
+				],
+				"execution_count": 8
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"# df = target_table.toDF()\r\n",
+					"\r\n",
+					"# display(df)"
+				],
+				"execution_count": 9
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"source_t = DeltaTable.forPath(spark,source_delta_path)\r\n",
+					"tab1 = source_t.toDF()\r\n",
+					"display(tab1)\r\n",
+					""
+				],
+				"execution_count": 11
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"target_t = DeltaTable.forPath(spark,target_delta_path)\r\n",
+					"tab2 = target_t.toDF()\r\n",
+					"\r\n",
+					"display(tab2)"
+				],
+				"execution_count": 15
+			}
+		]
+	}
+}
