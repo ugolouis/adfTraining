@@ -1,5 +1,5 @@
 {
-	"name": "1_explore_taxi_zone",
+	"name": "1_explore_taxi_zone_csv_files",
 	"properties": {
 		"folder": {
 			"name": "nyc_taxi/discovery"
