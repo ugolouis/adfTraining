@@ -1,8 +1,8 @@
 {
-	"name": "2_ECDS_Accomodation",
+	"name": "3_ECDS_Accomodation",
 	"properties": {
 		"folder": {
-			"name": "ECDS"
+			"name": "ECDS_notebooks"
 		},
 		"nbformat": 4,
 		"nbformat_minor": 2,
@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "1e5f71d4-c733-4357-9112-b1a89cc0a7dc"
+				"spark.autotune.trackingId": "29e71a32-4f15-4422-b7ac-402441f9316b"
 			}
 		},
 		"metadata": {

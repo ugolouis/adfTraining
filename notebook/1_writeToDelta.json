@@ -2,7 +2,7 @@
 	"name": "1_writeToDelta",
 	"properties": {
 		"folder": {
-			"name": "ECDS"
+			"name": "ECDS_notebooks"
 		},
 		"nbformat": 4,
 		"nbformat_minor": 2,
@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "d843527f-ead5-48d4-9acc-0495bc02c3a6"
+				"spark.autotune.trackingId": "b7aecbe2-d457-4783-af4e-eddde1c1972e"
 			}
 		},
 		"metadata": {
