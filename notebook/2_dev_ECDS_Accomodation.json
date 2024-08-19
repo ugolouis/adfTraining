@@ -1,5 +1,5 @@
 {
-	"name": "3_ECDS_Accomodation",
+	"name": "2_dev_ECDS_Accomodation",
 	"properties": {
 		"folder": {
 			"name": "ECDS_notebooks"
@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "29e71a32-4f15-4422-b7ac-402441f9316b"
+				"spark.autotune.trackingId": "60f9621d-5316-43aa-a5aa-a2f139100e85"
 			}
 		},
 		"metadata": {
@@ -71,7 +71,7 @@
 					"from pyspark.sql.functions import col, when, current_timestamp, current_date\r\n",
 					"from delta.tables import DeltaTable"
 				],
-				"execution_count": 15
+				"execution_count": 2
 			},
 			{
 				"cell_type": "code",
@@ -98,7 +98,7 @@
 					"source_delta_path = f'abfss://{delta_container_name}@{storage_account_name}.dfs.core.windows.net/ECDS_Accomodation_Type_vw_delta'\r\n",
 					"target_delta_path = f'abfss://{delta_container_name}@{storage_account_name}.dfs.core.windows.net/ECDS_Accomodation_Type_delta'"
 				],
-				"execution_count": null
+				"execution_count": 3
 			},
 			{
 				"cell_type": "markdown",
@@ -133,7 +133,7 @@
 					"\r\n",
 					"# display(src_df)"
 				],
-				"execution_count": null
+				"execution_count": 4
 			},
 			{
 				"cell_type": "markdown",
@@ -164,7 +164,7 @@
 				"source": [
 					"target_table = DeltaTable.forPath(spark, target_delta_path)"
 				],
-				"execution_count": null
+				"execution_count": 5
 			},
 			{
 				"cell_type": "code",
@@ -187,7 +187,7 @@
 					"\r\n",
 					"# # display(df)"
 				],
-				"execution_count": 9
+				"execution_count": 30
 			},
 			{
 				"cell_type": "code",
@@ -249,7 +249,7 @@
 					"# metrics = spark.sql(\"DESCRIBE HISTORY delta.`\" + target_delta_path + \"` LIMIT 1\").select(\"operationMetrics\").collect()[0][0]\r\n",
 					"# print(\"Merge operation metrics:\", metrics)"
 				],
-				"execution_count": 14
+				"execution_count": 6
 			},
 			{
 				"cell_type": "code",
@@ -268,7 +268,7 @@
 				"source": [
 					"display(df)"
 				],
-				"execution_count": 10
+				"execution_count": 32
 			},
 			{
 				"cell_type": "code",
@@ -288,7 +288,7 @@
 					"df2 = target_table.toDF()\r\n",
 					"display(df2)"
 				],
-				"execution_count": 11
+				"execution_count": null
 			}
 		]
 	}

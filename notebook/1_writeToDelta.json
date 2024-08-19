@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "b7aecbe2-d457-4783-af4e-eddde1c1972e"
+				"spark.autotune.trackingId": "0e83b5a6-5bcb-495a-85a1-19afae30be9c"
 			}
 		},
 		"metadata": {
@@ -205,6 +205,19 @@
 				"execution_count": 7
 			},
 			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# ECDS_AlcoholDrug_UpdateV3_sp"
+				]
+			},
+			{
 				"cell_type": "code",
 				"metadata": {
 					"jupyter": {
@@ -218,74 +231,46 @@
 					}
 				},
 				"source": [
-					"# target_table = DeltaTable.forPath(spark, target_delta_path)"
-				],
-				"execution_count": 8
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					},
-					"collapsed": false
-				},
-				"source": [
-					"# df = target_table.toDF()\r\n",
+					"# define variables\r\n",
+					"storage_account_name = \"synapsestr\"\r\n",
+					"container_name = \"nervecentre-data\"\r\n",
+					"delta_container_name = \"nervecentre-delta\"\r\n",
+					"source_relative_alcohol_path1 = \"/ECDS_AlcoholDrug_vw.csv\"\r\n",
+					"target_relative_alcohol_path = \"/ECDS_AlcoholDrugV2_vw.csv\"\r\n",
+					"target_relative_alcohol_path = \"/ECDS_AlcoholDrug.csv\"\r\n",
+					"source_alcohol_path1 = f'abfss://{container_name}@{storage_account_name}.dfs.core.windows.net{source_relative_alcohol_path1}'\r\n",
+					"source_alcohol_path2 = f'abfss://{container_name}@{storage_account_name}.dfs.core.windows.net{source_relative_alcohol_path1}'\r\n",
+					"target_alcohol_path1 = f'abfss://{container_name}@{storage_account_name}.dfs.core.windows.net{target_relative_alcohol_path}'\r\n",
 					"\r\n",
-					"# display(df)"
-				],
-				"execution_count": 9
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					},
-					"collapsed": false
-				},
-				"source": [
-					"source_t = DeltaTable.forPath(spark,source_delta_path)\r\n",
-					"tab1 = source_t.toDF()\r\n",
-					"display(tab1)\r\n",
-					""
-				],
-				"execution_count": 11
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					},
-					"collapsed": false
-				},
-				"source": [
-					"target_t = DeltaTable.forPath(spark,target_delta_path)\r\n",
-					"tab2 = target_t.toDF()\r\n",
+					"source_delta_alcohol_path1 = f'abfss://{delta_container_name}@{storage_account_name}.dfs.core.windows.net/ECDS_AlcoholDrug_vw'\r\n",
+					"source_delta_alcohol_path2 = f'abfss://{delta_container_name}@{storage_account_name}.dfs.core.windows.net/ECDS_AlcoholDrugV2_vw'\r\n",
+					"target_delta_alcohol_path1 = f'abfss://{delta_container_name}@{storage_account_name}.dfs.core.windows.net/ECDS_AlcoholDrug'\r\n",
 					"\r\n",
-					"display(tab2)"
+					"\r\n",
+					"# Step 1: Read the source CSV file\r\n",
+					"source_csv_df1 = spark.read.format(\"csv\") \\\r\n",
+					"              .option(\"header\", \"true\") \\\r\n",
+					"              .option(\"inferSchema\", \"true\") \\\r\n",
+					"              .load(source_alcohol_path1)\r\n",
+					"\r\n",
+					"\r\n",
+					"source_csv_df2 = spark.read.format(\"csv\") \\\r\n",
+					"              .option(\"header\", \"true\") \\\r\n",
+					"              .option(\"inferSchema\", \"true\") \\\r\n",
+					"              .load(source_alcohol_path2)\r\n",
+					"\r\n",
+					"target_csv_df1 = spark.read.format(\"csv\") \\\r\n",
+					"              .option(\"header\", \"true\") \\\r\n",
+					"              .option(\"inferSchema\", \"true\") \\\r\n",
+					"              .load(target_alcohol_path1)\r\n",
+					"\r\n",
+					"\r\n",
+					"# Write the read CSV to Delta tables\r\n",
+					"source_csv_df1.write.format(\"delta\").mode(\"overwrite\").save(source_delta_alcohol_path1)\r\n",
+					"source_csv_df2.write.format(\"delta\").mode(\"overwrite\").save(source_delta_alcohol_path2)\r\n",
+					"target_csv_df1.write.format(\"delta\").mode(\"overwrite\").save(target_delta_alcohol_path1)"
 				],
-				"execution_count": 15
+				"execution_count": 22
 			}
 		]
 	}

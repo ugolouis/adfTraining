@@ -1,5 +1,5 @@
 {
-	"name": "2_ECDS_AlcoholDrug_UpdateV3",
+	"name": "3_dev_ECDS_AlcoholDrug_UpdateV3",
 	"properties": {
 		"folder": {
 			"name": "ECDS_notebooks"
@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "eb3e49dc-cad1-4bd1-b9f4-8b8d909070b6"
+				"spark.autotune.trackingId": "4db45205-ecb9-49c9-9c15-8f35ad4b7cd6"
 			}
 		},
 		"metadata": {

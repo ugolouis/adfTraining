@@ -1,0 +1,164 @@
+{
+	"name": "1_ECDS_Accomodation",
+	"properties": {
+		"folder": {
+			"name": "ECDS_prod_notebooks"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "esht",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "b01f3ee4-64cd-4e16-a948-0bfed6f40b06"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/f6e89fe8-0d17-497c-9795-5ecb2ab3bbcc/resourceGroups/SynapseRG/providers/Microsoft.Synapse/workspaces/ugolouis-synapse-ws/bigDataPools/esht",
+				"name": "esht",
+				"type": "Spark",
+				"endpoint": "https://ugolouis-synapse-ws.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/esht",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.4",
+				"nodeCount": 10,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#  ECDS_Accomodation_Type_UpdateV2_sp "
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Import necessary libraries\r\n",
+					"from pyspark.sql.functions import col, when, current_timestamp, current_date\r\n",
+					"from delta.tables import DeltaTable\r\n",
+					"\r\n",
+					"# Define paths\r\n",
+					"storage_account_name = \"synapsestr\"\r\n",
+					"delta_container_name = \"nervecentre-delta\"\r\n",
+					"source_delta_path = f'abfss://{delta_container_name}@{storage_account_name}.dfs.core.windows.net/ECDS_Accomodation_Type_vw_delta'\r\n",
+					"target_delta_path = f'abfss://{delta_container_name}@{storage_account_name}.dfs.core.windows.net/ECDS_Accomodation_Type_delta'\r\n",
+					"\r\n",
+					"# Read source view\r\n",
+					"src_df = spark.read.format(\"delta\").load(source_delta_path)\r\n",
+					"\r\n",
+					"# Create a DeltaTable object for the target table\r\n",
+					"target_table = DeltaTable.forPath(spark, target_delta_path)\r\n",
+					"\r\n",
+					"# Define merge and update conditions\r\n",
+					"merge_condition = \"\"\"\r\n",
+					"    tgt.visitarchiveid = src.visitarchiveid AND\r\n",
+					"    tgt.IdOrder = src.IdOrder\r\n",
+					"\"\"\"\r\n",
+					"\r\n",
+					"update_condition = \"\"\"\r\n",
+					"    tgt.AccomodationTypeDesc <> src.AccomodationTypeDesc OR\r\n",
+					"    tgt.AccomodationDateAdded <> src.AccomodationDateAdded OR\r\n",
+					"    tgt.AccomodationTypeSNOMED <> src.AccomodationTypeSNOMED\r\n",
+					"\"\"\"\r\n",
+					"\r\n",
+					"# Perform the MERGE operation\r\n",
+					"(target_table.alias(\"tgt\")\r\n",
+					" .merge(\r\n",
+					"    src_df.alias(\"src\"),\r\n",
+					"    merge_condition\r\n",
+					" )\r\n",
+					" .whenMatchedUpdate(\r\n",
+					"    condition=update_condition,\r\n",
+					"    set={\r\n",
+					"        \"AccomodationTypeDesc\": \"src.AccomodationTypeDesc\",\r\n",
+					"        \"AccomodationDateAdded\": \"src.AccomodationDateAdded\",\r\n",
+					"        \"AccomodationTypeSNOMED\": \"src.AccomodationTypeSNOMED\",\r\n",
+					"        \"AmendOn\": current_timestamp()\r\n",
+					"    }\r\n",
+					" )\r\n",
+					" .whenNotMatchedInsert(\r\n",
+					"    values={\r\n",
+					"        \"visitarchiveid\": \"src.visitarchiveid\",\r\n",
+					"        \"IdOrder\": \"src.IdOrder\",\r\n",
+					"        \"AccomodationTypeDesc\": \"src.AccomodationTypeDesc\",\r\n",
+					"        \"AccomodationDateAdded\": \"src.AccomodationDateAdded\",\r\n",
+					"        \"AccomodationTypeSNOMED\": \"src.AccomodationTypeSNOMED\",\r\n",
+					"        \"AmendOn\": current_timestamp()\r\n",
+					"    }\r\n",
+					" )\r\n",
+					" .execute())\r\n",
+					"\r\n",
+					"# Log the number of affected rows (optional)\r\n",
+					"affected_rows = target_table.toDF().count()\r\n",
+					"print(f\"Number of rows in the target table after merge: {affected_rows}\")"
+				],
+				"execution_count": 4
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"# df = target_table.toDF()\r\n",
+					"# display(df)"
+				],
+				"execution_count": 5
+			}
+		]
+	}
+}
