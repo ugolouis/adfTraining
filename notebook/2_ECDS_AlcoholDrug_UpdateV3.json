@@ -1,5 +1,5 @@
 {
-	"name": "2_ECDS_Accomodation",
+	"name": "2_ECDS_AlcoholDrug_UpdateV3",
 	"properties": {
 		"folder": {
 			"name": "ECDS"
@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "1e5f71d4-c733-4357-9112-b1a89cc0a7dc"
+				"spark.autotune.trackingId": "032fcc24-e3ad-40d1-8ac8-b2ab93e371c9"
 			}
 		},
 		"metadata": {
@@ -68,10 +68,10 @@
 				"cell_type": "code",
 				"source": [
 					"from pyspark.sql import SparkSession\r\n",
-					"from pyspark.sql.functions import col, when, current_timestamp, current_date\r\n",
+					"from pyspark.sql.functions import col, isnull, lit, when, current_timestamp, current_date\r\n",
 					"from delta.tables import DeltaTable"
 				],
-				"execution_count": 15
+				"execution_count": 1
 			},
 			{
 				"cell_type": "code",
@@ -98,7 +98,7 @@
 					"source_delta_path = f'abfss://{delta_container_name}@{storage_account_name}.dfs.core.windows.net/ECDS_Accomodation_Type_vw_delta'\r\n",
 					"target_delta_path = f'abfss://{delta_container_name}@{storage_account_name}.dfs.core.windows.net/ECDS_Accomodation_Type_delta'"
 				],
-				"execution_count": null
+				"execution_count": 2
 			},
 			{
 				"cell_type": "markdown",
@@ -133,7 +133,7 @@
 					"\r\n",
 					"# display(src_df)"
 				],
-				"execution_count": null
+				"execution_count": 3
 			},
 			{
 				"cell_type": "markdown",
@@ -164,7 +164,7 @@
 				"source": [
 					"target_table = DeltaTable.forPath(spark, target_delta_path)"
 				],
-				"execution_count": null
+				"execution_count": 4
 			},
 			{
 				"cell_type": "code",
