@@ -2,7 +2,7 @@
 	"name": "7_ECDS_Diagnosis_Update_Part2_sp",
 	"properties": {
 		"folder": {
-			"name": "ECDS_notebooks"
+			"name": "ECDS_prod_notebooks"
 		},
 		"nbformat": 4,
 		"nbformat_minor": 2,
@@ -16,7 +16,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "0bbf65d8-69a1-41d1-b682-c676ae24aa6e"
+				"spark.autotune.trackingId": "6c6e6c49-60c9-4a14-83f5-0a27ee2cc48e"
 			}
 		},
 		"metadata": {
