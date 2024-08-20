@@ -20,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "b01f3ee4-64cd-4e16-a948-0bfed6f40b06"
+				"spark.autotune.trackingId": "43fd9b6f-bf55-4f20-8682-56fbabacd04e"
 			}
 		},
 		"metadata": {
@@ -138,26 +138,6 @@
 					"print(f\"Number of rows in the target table after merge: {affected_rows}\")"
 				],
 				"execution_count": 4
-			},
-			{
-				"cell_type": "code",
-				"metadata": {
-					"jupyter": {
-						"source_hidden": false,
-						"outputs_hidden": false
-					},
-					"nteract": {
-						"transient": {
-							"deleting": false
-						}
-					},
-					"collapsed": false
-				},
-				"source": [
-					"# df = target_table.toDF()\r\n",
-					"# display(df)"
-				],
-				"execution_count": 5
 			}
 		]
 	}

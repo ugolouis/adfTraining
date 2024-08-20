@@ -1,0 +1,268 @@
+{
+	"name": "3_ECDS_CodeClinicalFindings",
+	"properties": {
+		"folder": {
+			"name": "ECDS_prod_notebooks"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "esht",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "075050e6-07b3-49ff-bb00-de8f444a6fe6"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/f6e89fe8-0d17-497c-9795-5ecb2ab3bbcc/resourceGroups/SynapseRG/providers/Microsoft.Synapse/workspaces/ugolouis-synapse-ws/bigDataPools/esht",
+				"name": "esht",
+				"type": "Spark",
+				"endpoint": "https://ugolouis-synapse-ws.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/esht",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.4",
+				"nodeCount": 10,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# ECDS_AlcoholDrug_UpdateV3_sp"
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## Version 1\r\n",
+					"This is used with newer version of delta lake. This works with Delta Lake version 0.8.0 or later as it uses WhenNotMatchedBySource() method in the merge statement"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"from pyspark.sql.functions import col, current_timestamp, coalesce, lit\r\n",
+					"from delta.tables import DeltaTable\r\n",
+					"\r\n",
+					"# Define paths\r\n",
+					"storage_account_name = \"synapsestr\"\r\n",
+					"delta_container_name = \"nervecentre-delta\"\r\n",
+					"source_delta_path = f'abfss://{delta_container_name}@{storage_account_name}.dfs.core.windows.net/ECDS_CodedClinicalFindings_vw'\r\n",
+					"target_delta_path = f'abfss://{delta_container_name}@{storage_account_name}.dfs.core.windows.net/ECDS_CodedClinicalFindings'\r\n",
+					"\r\n",
+					"# Read source view\r\n",
+					"src_df = spark.read.format(\"delta\").load(source_delta_path)\r\n",
+					"\r\n",
+					"# Create a DeltaTable object for the target table\r\n",
+					"target_table = DeltaTable.forPath(spark, target_delta_path)\r\n",
+					"\r\n",
+					"# Define merge condition\r\n",
+					"merge_condition = \"\"\"\r\n",
+					"    tgt.visitarchiveid = src.visitarchiveid AND\r\n",
+					"    tgt.ObsId = src.ObsId AND\r\n",
+					"    tgt.obsdetailsid = src.obsdetailsid\r\n",
+					"\"\"\"\r\n",
+					"\r\n",
+					"# Define update condition\r\n",
+					"update_condition = \"\"\"\r\n",
+					"    (COALESCE(tgt.Coded_FindingSNOMED, 'X') <> COALESCE(src.Coded_FindingSNOMED, 'X')) OR\r\n",
+					"    (COALESCE(tgt.Coded_FindingDesc, 'X') <> COALESCE(src.Coded_FindingDesc, 'X')) OR\r\n",
+					"    (COALESCE(tgt.Coded_Finding_Timestamp, to_timestamp('1900-01-01')) <> COALESCE(src.Coded_Finding_Timestamp, to_timestamp('1900-01-01')))\r\n",
+					"\"\"\"\r\n",
+					"\r\n",
+					"# Perform the MERGE operation\r\n",
+					"(target_table.alias(\"tgt\")\r\n",
+					" .merge(\r\n",
+					"    src_df.alias(\"src\"),\r\n",
+					"    merge_condition\r\n",
+					" )\r\n",
+					" .whenMatchedUpdate(\r\n",
+					"    condition=update_condition,\r\n",
+					"    set={\r\n",
+					"        \"Coded_FindingSNOMED\": \"src.Coded_FindingSNOMED\",\r\n",
+					"        \"Coded_FindingDesc\": \"src.Coded_FindingDesc\",\r\n",
+					"        \"Coded_Finding_Timestamp\": \"src.Coded_Finding_Timestamp\",\r\n",
+					"        \"AmendOn\": current_timestamp()\r\n",
+					"    }\r\n",
+					" )\r\n",
+					" .whenNotMatchedInsert(\r\n",
+					"    values={\r\n",
+					"        \"visitarchiveid\": \"src.visitarchiveid\",\r\n",
+					"        \"ObsId\": \"src.ObsId\",\r\n",
+					"        \"obsdetailsid\": \"src.obsdetailsid\",\r\n",
+					"        \"Coded_FindingSNOMED\": \"src.Coded_FindingSNOMED\",\r\n",
+					"        \"Coded_FindingDesc\": \"src.Coded_FindingDesc\",\r\n",
+					"        \"Coded_Finding_Timestamp\": \"src.Coded_Finding_Timestamp\",\r\n",
+					"        \"AmendOn\": current_timestamp()\r\n",
+					"    }\r\n",
+					" )\r\n",
+					" .whenNotMatchedBySource()\r\n",
+					" .delete()\r\n",
+					" .execute())\r\n",
+					"\r\n",
+					"# Log the number of affected rows (optional)\r\n",
+					"affected_rows = target_table.toDF().count()\r\n",
+					"print(f\"Number of rows in the target table after merge: {affected_rows}\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## Version 2\r\n",
+					"\r\n",
+					"Implement a separate delete operation. If you're using an older version of Delta Lake or if the above method is not available, we can implement the deletion as a separate step after the merge operation"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"from pyspark.sql.functions import col, current_timestamp, coalesce, lit\r\n",
+					"from delta.tables import DeltaTable\r\n",
+					"\r\n",
+					"# Define paths\r\n",
+					"storage_account_name = \"synapsestr\"\r\n",
+					"delta_container_name = \"nervecentre-delta\"\r\n",
+					"source_delta_path = f'abfss://{delta_container_name}@{storage_account_name}.dfs.core.windows.net/ECDS_CodedClinicalFindings_vw'\r\n",
+					"target_delta_path = f'abfss://{delta_container_name}@{storage_account_name}.dfs.core.windows.net/ECDS_CodedClinicalFindings'\r\n",
+					"\r\n",
+					"# Read source view\r\n",
+					"src_df = spark.read.format(\"delta\").load(source_delta_path)\r\n",
+					"\r\n",
+					"# Create a DeltaTable object for the target table\r\n",
+					"target_table = DeltaTable.forPath(spark, target_delta_path)\r\n",
+					"\r\n",
+					"# Define merge condition\r\n",
+					"merge_condition = \"\"\"\r\n",
+					"    tgt.visitarchiveid = src.visitarchiveid AND\r\n",
+					"    tgt.ObsId = src.ObsId AND\r\n",
+					"    tgt.obsdetailsid = src.obsdetailsid\r\n",
+					"\"\"\"\r\n",
+					"\r\n",
+					"# Define update condition\r\n",
+					"update_condition = \"\"\"\r\n",
+					"    (COALESCE(tgt.Coded_FindingSNOMED, 'X') <> COALESCE(src.Coded_FindingSNOMED, 'X')) OR\r\n",
+					"    (COALESCE(tgt.Coded_FindingDesc, 'X') <> COALESCE(src.Coded_FindingDesc, 'X')) OR\r\n",
+					"    (COALESCE(tgt.Coded_Finding_Timestamp, to_timestamp('1900-01-01')) <> COALESCE(src.Coded_Finding_Timestamp, to_timestamp('1900-01-01')))\r\n",
+					"\"\"\"\r\n",
+					"\r\n",
+					"# Perform the MERGE operation\r\n",
+					"(target_table.alias(\"tgt\")\r\n",
+					" .merge(\r\n",
+					"    src_df.alias(\"src\"),\r\n",
+					"    merge_condition\r\n",
+					" )\r\n",
+					" .whenMatchedUpdate(\r\n",
+					"    condition=update_condition,\r\n",
+					"    set={\r\n",
+					"        \"Coded_FindingSNOMED\": \"src.Coded_FindingSNOMED\",\r\n",
+					"        \"Coded_FindingDesc\": \"src.Coded_FindingDesc\",\r\n",
+					"        \"Coded_Finding_Timestamp\": \"src.Coded_Finding_Timestamp\",\r\n",
+					"        \"AmendOn\": current_timestamp()\r\n",
+					"    }\r\n",
+					" )\r\n",
+					" .whenNotMatchedInsert(\r\n",
+					"    values={\r\n",
+					"        \"visitarchiveid\": \"src.visitarchiveid\",\r\n",
+					"        \"ObsId\": \"src.ObsId\",\r\n",
+					"        \"obsdetailsid\": \"src.obsdetailsid\",\r\n",
+					"        \"Coded_FindingSNOMED\": \"src.Coded_FindingSNOMED\",\r\n",
+					"        \"Coded_FindingDesc\": \"src.Coded_FindingDesc\",\r\n",
+					"        \"Coded_Finding_Timestamp\": \"src.Coded_Finding_Timestamp\",\r\n",
+					"        \"AmendOn\": current_timestamp()\r\n",
+					"    }\r\n",
+					" )\r\n",
+					" .execute())\r\n",
+					"\r\n",
+					"# Identify records in target that are not in source\r\n",
+					"target_df = target_table.toDF()\r\n",
+					"records_to_delete = target_df.join(src_df, ['visitarchiveid', 'ObsId', 'obsdetailsid'], 'left_anti')\r\n",
+					"\r\n",
+					"# Delete these records\r\n",
+					"if records_to_delete.count() > 0:\r\n",
+					"    target_table.delete(\r\n",
+					"        condition = f\"\"\"\r\n",
+					"        visitarchiveid IN (SELECT visitarchiveid FROM records_to_delete) AND\r\n",
+					"        ObsId IN (SELECT ObsId FROM records_to_delete) AND\r\n",
+					"        obsdetailsid IN (SELECT obsdetailsid FROM records_to_delete)\r\n",
+					"        \"\"\"\r\n",
+					"    )\r\n",
+					"\r\n",
+					"# Log the number of affected rows (optional)\r\n",
+					"affected_rows = target_table.toDF().count()\r\n",
+					"print(f\"Number of rows in the target table after merge and delete: {affected_rows}\")"
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
