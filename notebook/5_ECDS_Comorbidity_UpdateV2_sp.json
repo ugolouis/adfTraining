@@ -1,0 +1,269 @@
+{
+	"name": "5_ECDS_Comorbidity_UpdateV2_sp",
+	"properties": {
+		"folder": {
+			"name": "ECDS_prod_notebooks"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "f67574d4-7c5b-4be8-ab8b-45da67242c89"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "python"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# ECDS_Comorbidity_UpdateV2_sp"
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"## Version 1\r\n",
+					"\r\n",
+					"Delta Lake 0.8+"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql.functions import col, when, coalesce, lit, current_timestamp\r\n",
+					"from delta.tables import DeltaTable\r\n",
+					"\r\n",
+					"# Define paths\r\n",
+					"storage_account_name = \"synapsestr\"\r\n",
+					"delta_container_name = \"nervecentre-delta\"\r\n",
+					"source_delta_path = f'abfss://{delta_container_name}@{storage_account_name}.dfs.core.windows.net/ECDS_Comorbidities_vw'\r\n",
+					"target_delta_path = f'abfss://{delta_container_name}@{storage_account_name}.dfs.core.windows.net/ECDS_Comorbidity'\r\n",
+					"main_table_path = f'abfss://{delta_container_name}@{storage_account_name}.dfs.core.windows.net/ECDS_EmergencyVisitData_Main'\r\n",
+					"sensitive_codes_path = f'abfss://{delta_container_name}@{storage_account_name}.dfs.core.windows.net/refECDS_SensitiveCodesSNOMED'\r\n",
+					"\r\n",
+					"# Read source view\r\n",
+					"src_df = spark.read.format(\"delta\").load(source_delta_path)\r\n",
+					"\r\n",
+					"# Create a DeltaTable object for the target table\r\n",
+					"target_table = DeltaTable.forPath(spark, target_delta_path)\r\n",
+					"\r\n",
+					"# Define merge condition\r\n",
+					"merge_condition = \"\"\"\r\n",
+					"    tgt.visitarchiveid = src.visitarchiveid AND\r\n",
+					"    tgt.ComorbidityIDOrder = src.ComorbidityIDOrder\r\n",
+					"\"\"\"\r\n",
+					"\r\n",
+					"# Define update condition\r\n",
+					"update_condition = \"\"\"\r\n",
+					"    (COALESCE(tgt.Comorbidity, 'X') <> COALESCE(src.ComorbioditySNOMED, 'X')) OR\r\n",
+					"    (COALESCE(tgt.ComorbidityDesc, 'X') <> COALESCE(src.ComorbidityDesc, 'X'))\r\n",
+					"\"\"\"\r\n",
+					"\r\n",
+					"# Perform the MERGE operation\r\n",
+					"(target_table.alias(\"tgt\")\r\n",
+					" .merge(\r\n",
+					"    src_df.alias(\"src\"),\r\n",
+					"    merge_condition\r\n",
+					" )\r\n",
+					" .whenMatchedUpdate(\r\n",
+					"    condition=update_condition,\r\n",
+					"    set={\r\n",
+					"        \"Comorbidity\": \"src.ComorbioditySNOMED\",\r\n",
+					"        \"ComorbidityDesc\": \"src.ComorbidityDesc\"\r\n",
+					"    }\r\n",
+					" )\r\n",
+					" .whenNotMatchedInsert(\r\n",
+					"    values={\r\n",
+					"        \"visitarchiveid\": \"src.visitarchiveid\",\r\n",
+					"        \"ComorbidityIDOrder\": \"src.ComorbidityIDOrder\",\r\n",
+					"        \"Comorbidity\": \"src.ComorbioditySNOMED\",\r\n",
+					"        \"ComorbidityDesc\": \"src.ComorbidityDesc\"\r\n",
+					"    }\r\n",
+					" )\r\n",
+					" .whenNotMatchedBySource()\r\n",
+					" .delete()\r\n",
+					" .execute())\r\n",
+					"\r\n",
+					"# Perform the additional UPDATE operation\r\n",
+					"main_table = DeltaTable.forPath(spark, main_table_path)\r\n",
+					"comorbidity_df = target_table.toDF()\r\n",
+					"sensitive_codes_df = spark.read.format(\"delta\").load(sensitive_codes_path)\r\n",
+					"\r\n",
+					"# Join the tables\r\n",
+					"joined_df = (main_table.toDF().alias(\"m\")\r\n",
+					"             .join(comorbidity_df.alias(\"c\"), col(\"m.visitarchiveid\") == col(\"c.visitarchiveid\"))\r\n",
+					"             .join(sensitive_codes_df.alias(\"sc\"), col(\"c.Comorbidity\") == col(\"sc.snomed\"))\r\n",
+					"             .where(col(\"m.Sensitive_Flag\") == \"N\")\r\n",
+					"             .select(\"m.visitarchiveid\"))\r\n",
+					"\r\n",
+					"# Update the main table\r\n",
+					"main_table.update(\r\n",
+					"    condition=\"visitarchiveid IN (SELECT visitarchiveid FROM joined_df)\",\r\n",
+					"    set={\"Sensitive_Flag\": lit(\"Y\")}\r\n",
+					")\r\n",
+					"\r\n",
+					"# Log the number of affected rows (optional)\r\n",
+					"affected_rows = target_table.toDF().count()\r\n",
+					"print(f\"Number of rows in the target table after merge: {affected_rows}\")\r\n",
+					"\r\n",
+					"updated_rows = main_table.toDF().where(col(\"Sensitive_Flag\") == \"Y\").count()\r\n",
+					"print(f\"Number of rows updated in the main table: {updated_rows}\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Version 2\r\n",
+					"\r\n",
+					"Older version of Delta Lake"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"from pyspark.sql.functions import col, when, coalesce, lit, current_timestamp\r\n",
+					"from delta.tables import DeltaTable\r\n",
+					"\r\n",
+					"# Define paths\r\n",
+					"storage_account_name = \"synapsestr\"\r\n",
+					"delta_container_name = \"nervecentre-delta\"\r\n",
+					"source_delta_path = f'abfss://{delta_container_name}@{storage_account_name}.dfs.core.windows.net/ECDS_Comorbidities_vw'\r\n",
+					"target_delta_path = f'abfss://{delta_container_name}@{storage_account_name}.dfs.core.windows.net/ECDS_Comorbidity'\r\n",
+					"main_table_path = f'abfss://{delta_container_name}@{storage_account_name}.dfs.core.windows.net/ECDS_EmergencyVisitData_Main'\r\n",
+					"sensitive_codes_path = f'abfss://{delta_container_name}@{storage_account_name}.dfs.core.windows.net/refECDS_SensitiveCodesSNOMED'\r\n",
+					"\r\n",
+					"# Read source view\r\n",
+					"src_df = spark.read.format(\"delta\").load(source_delta_path)\r\n",
+					"\r\n",
+					"# Create a DeltaTable object for the target table\r\n",
+					"target_table = DeltaTable.forPath(spark, target_delta_path)\r\n",
+					"\r\n",
+					"# Define merge condition\r\n",
+					"merge_condition = \"\"\"\r\n",
+					"    tgt.visitarchiveid = src.visitarchiveid AND\r\n",
+					"    tgt.ComorbidityIDOrder = src.ComorbidityIDOrder\r\n",
+					"\"\"\"\r\n",
+					"\r\n",
+					"# Define update condition\r\n",
+					"update_condition = \"\"\"\r\n",
+					"    (COALESCE(tgt.Comorbidity, 'X') <> COALESCE(src.ComorbioditySNOMED, 'X')) OR\r\n",
+					"    (COALESCE(tgt.ComorbidityDesc, 'X') <> COALESCE(src.ComorbidityDesc, 'X'))\r\n",
+					"\"\"\"\r\n",
+					"\r\n",
+					"# Perform the MERGE operation\r\n",
+					"(target_table.alias(\"tgt\")\r\n",
+					" .merge(\r\n",
+					"    src_df.alias(\"src\"),\r\n",
+					"    merge_condition\r\n",
+					" )\r\n",
+					" .whenMatchedUpdate(\r\n",
+					"    condition=update_condition,\r\n",
+					"    set={\r\n",
+					"        \"Comorbidity\": \"src.ComorbioditySNOMED\",\r\n",
+					"        \"ComorbidityDesc\": \"src.ComorbidityDesc\"\r\n",
+					"    }\r\n",
+					" )\r\n",
+					" .whenNotMatchedInsert(\r\n",
+					"    values={\r\n",
+					"        \"visitarchiveid\": \"src.visitarchiveid\",\r\n",
+					"        \"ComorbidityIDOrder\": \"src.ComorbidityIDOrder\",\r\n",
+					"        \"Comorbidity\": \"src.ComorbioditySNOMED\",\r\n",
+					"        \"ComorbidityDesc\": \"src.ComorbidityDesc\"\r\n",
+					"    }\r\n",
+					" )\r\n",
+					" .execute())\r\n",
+					"\r\n",
+					"# Perform the delete operation for records not in source\r\n",
+					"target_df = target_table.toDF()\r\n",
+					"records_to_delete = target_df.join(src_df, ['visitarchiveid', 'ComorbidityIDOrder'], 'left_anti')\r\n",
+					"\r\n",
+					"if records_to_delete.count() > 0:\r\n",
+					"    target_table.delete(\r\n",
+					"        condition = \"\"\"\r\n",
+					"        visitarchiveid IN (SELECT visitarchiveid FROM records_to_delete) AND\r\n",
+					"        ComorbidityIDOrder IN (SELECT ComorbidityIDOrder FROM records_to_delete)\r\n",
+					"        \"\"\"\r\n",
+					"    )\r\n",
+					"\r\n",
+					"# Perform the additional UPDATE operation\r\n",
+					"main_table = DeltaTable.forPath(spark, main_table_path)\r\n",
+					"comorbidity_df = target_table.toDF()\r\n",
+					"sensitive_codes_df = spark.read.format(\"delta\").load(sensitive_codes_path)\r\n",
+					"\r\n",
+					"# Join the tables\r\n",
+					"joined_df = (main_table.toDF().alias(\"m\")\r\n",
+					"             .join(comorbidity_df.alias(\"c\"), col(\"m.visitarchiveid\") == col(\"c.visitarchiveid\"))\r\n",
+					"             .join(sensitive_codes_df.alias(\"sc\"), col(\"c.Comorbidity\") == col(\"sc.snomed\"))\r\n",
+					"             .where(col(\"m.Sensitive_Flag\") == \"N\")\r\n",
+					"             .select(\"m.visitarchiveid\"))\r\n",
+					"\r\n",
+					"# Update the main table\r\n",
+					"main_table.update(\r\n",
+					"    condition=\"visitarchiveid IN (SELECT visitarchiveid FROM joined_df)\",\r\n",
+					"    set={\"Sensitive_Flag\": lit(\"Y\")}\r\n",
+					")\r\n",
+					"\r\n",
+					"# Log the number of affected rows (optional)\r\n",
+					"affected_rows = target_table.toDF().count()\r\n",
+					"print(f\"Number of rows in the target table after merge and delete: {affected_rows}\")\r\n",
+					"\r\n",
+					"updated_rows = main_table.toDF().where(col(\"Sensitive_Flag\") == \"Y\").count()\r\n",
+					"print(f\"Number of rows updated in the main table: {updated_rows}\")"
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
