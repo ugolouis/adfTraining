@@ -1,0 +1,315 @@
+{
+	"name": "10_CDS_EmergencyVisitData_Main_UpdatePart_2_sp",
+	"properties": {
+		"folder": {
+			"name": "ECDS_prod_notebooks"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "9ce352da-7dab-450e-bf55-1357ced9c9c6"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "python"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# CDS_EmergencyVisitData_Main_UpdatePart_2_sp"
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Version 1\r\n",
+					"\r\n",
+					"Delta Lake version 0.8 + "
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql import SparkSession\r\n",
+					"from pyspark.sql.functions import col, when, coalesce, lit, current_timestamp, left, expr, year, to_date\r\n",
+					"from delta.tables import DeltaTable\r\n",
+					"\r\n",
+					"# Define paths\r\n",
+					"storage_account_name = \"synapsestr\"\r\n",
+					"delta_container_name = \"nervecentre-delta\"\r\n",
+					"main_table_path = f'abfss://{delta_container_name}@{storage_account_name}.dfs.core.windows.net/ECDS_EmergencyVisitData_Main'\r\n",
+					"\r\n",
+					"# Create SparkSession\r\n",
+					"spark = SparkSession.builder.appName(\"ECDS_EmergencyVisitData_Main_UpdatePart_2\").getOrCreate()\r\n",
+					"\r\n",
+					"# Read main table\r\n",
+					"main_table = DeltaTable.forPath(spark, main_table_path)\r\n",
+					"main_df = main_table.toDF()\r\n",
+					"\r\n",
+					"# Function to perform update\r\n",
+					"def update_main_table(main_df, update_df, join_condition, update_columns):\r\n",
+					"    return main_df.join(update_df, join_condition, \"left_outer\").select(\r\n",
+					"        main_df[\"*\"],\r\n",
+					"        *[when(update_df[col].isNotNull(), update_df[col]).otherwise(main_df[col]).alias(col) for col in update_columns],\r\n",
+					"        when(update_df[update_columns[0]].isNotNull(), current_timestamp()).otherwise(main_df[\"AmendedOn\"]).alias(\"AmendedOn\")\r\n",
+					"    )\r\n",
+					"\r\n",
+					"# ECDS_Arrival_Mode Update\r\n",
+					"arrival_mode_df = spark.read.table(\"ECDS_Arrival_Mode_vw\")\r\n",
+					"main_df = update_main_table(\r\n",
+					"    main_df, \r\n",
+					"    arrival_mode_df, \r\n",
+					"    main_df[\"visitarchiveid\"] == arrival_mode_df[\"visitarchiveid\"],\r\n",
+					"    [\"EC_Arrival_Mode_SNOMED\", \"EC_Arrival_Mode_DESC\"]\r\n",
+					")\r\n",
+					"\r\n",
+					"# ECDS_Attendance_Source Update\r\n",
+					"attendance_source_df = spark.read.table(\"ECDS_Attendance_Source_vw\")\r\n",
+					"main_df = update_main_table(\r\n",
+					"    main_df,\r\n",
+					"    attendance_source_df,\r\n",
+					"    main_df[\"visitarchiveid\"] == attendance_source_df[\"visitarchiveid\"],\r\n",
+					"    [\"EC_Att_Source_SNOMED\", \"EC_ATT_Source_DESC\"]\r\n",
+					")\r\n",
+					"\r\n",
+					"# Continue with similar update operations for other views...\r\n",
+					"\r\n",
+					"# Final update to Delta table\r\n",
+					"main_table.alias(\"tgt\").merge(\r\n",
+					"    main_df.alias(\"src\"),\r\n",
+					"    \"tgt.visitarchiveid = src.visitarchiveid\"\r\n",
+					").whenMatchedUpdate(\r\n",
+					"    condition = \"tgt.AmendedOn < src.AmendedOn\",\r\n",
+					"    set = {\r\n",
+					"        \"EC_Arrival_Mode_SNOMED\": \"src.EC_Arrival_Mode_SNOMED\",\r\n",
+					"        \"EC_Arrival_Mode_DESC\": \"src.EC_Arrival_Mode_DESC\",\r\n",
+					"        \"EC_Att_Source_SNOMED\": \"src.EC_Att_Source_SNOMED\",\r\n",
+					"        \"EC_ATT_Source_DESC\": \"src.EC_ATT_Source_DESC\",\r\n",
+					"        # ... include all other updated columns ...\r\n",
+					"        \"AmendedOn\": \"src.AmendedOn\"\r\n",
+					"    }\r\n",
+					").execute()\r\n",
+					"\r\n",
+					"# Log the number of affected rows (optional)\r\n",
+					"affected_rows = main_table.toDF().count()\r\n",
+					"print(f\"Number of rows in the target table after update: {affected_rows}\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Version 2\r\n",
+					"\r\n",
+					"Earlier versions of Delta Lake"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"from pyspark.sql import SparkSession\r\n",
+					"from pyspark.sql.functions import col, when, coalesce, lit, current_timestamp, left, expr, year, to_date\r\n",
+					"from delta.tables import DeltaTable\r\n",
+					"\r\n",
+					"# Define paths\r\n",
+					"storage_account_name = \"synapsestr\"\r\n",
+					"delta_container_name = \"nervecentre-delta\"\r\n",
+					"main_table_path = f'abfss://{delta_container_name}@{storage_account_name}.dfs.core.windows.net/ECDS_EmergencyVisitData_Main'\r\n",
+					"\r\n",
+					"# Create SparkSession\r\n",
+					"spark = SparkSession.builder.appName(\"ECDS_EmergencyVisitData_Main_UpdatePart_2\").getOrCreate()\r\n",
+					"\r\n",
+					"# Read main table\r\n",
+					"main_df = spark.read.format(\"delta\").load(main_table_path)\r\n",
+					"\r\n",
+					"# Function to perform update\r\n",
+					"def update_main_table(main_df, update_df, join_condition, update_columns):\r\n",
+					"    return main_df.join(update_df, join_condition, \"left_outer\").select(\r\n",
+					"        main_df[\"*\"],\r\n",
+					"        *[when(update_df[col].isNotNull() & (update_df[col] != main_df[col]), update_df[col]).otherwise(main_df[col]).alias(col) for col in update_columns],\r\n",
+					"        when(update_df[update_columns[0]].isNotNull() & (update_df[update_columns[0]] != main_df[update_columns[0]]), current_timestamp()).otherwise(main_df[\"AmendedOn\"]).alias(\"AmendedOn\")\r\n",
+					"    )\r\n",
+					"\r\n",
+					"# ECDS_Arrival_Mode Update\r\n",
+					"arrival_mode_df = spark.read.table(\"ECDS_Arrival_Mode_vw\")\r\n",
+					"main_df = update_main_table(\r\n",
+					"    main_df, \r\n",
+					"    arrival_mode_df, \r\n",
+					"    main_df[\"visitarchiveid\"] == arrival_mode_df[\"visitarchiveid\"],\r\n",
+					"    [\"EC_Arrival_Mode_SNOMED\", \"EC_Arrival_Mode_DESC\"]\r\n",
+					")\r\n",
+					"\r\n",
+					"# ECDS_Attendance_Source Update\r\n",
+					"attendance_source_df = spark.read.table(\"ECDS_Attendance_Source_vw\")\r\n",
+					"main_df = update_main_table(\r\n",
+					"    main_df,\r\n",
+					"    attendance_source_df,\r\n",
+					"    main_df[\"visitarchiveid\"] == attendance_source_df[\"visitarchiveid\"],\r\n",
+					"    [\"EC_Att_Source_SNOMED\", \"EC_ATT_Source_DESC\"]\r\n",
+					")\r\n",
+					"\r\n",
+					"# ECDS_Attendance_Type Update\r\n",
+					"attendance_type_df = spark.read.table(\"ECDS_Attendance_Type_vw\")\r\n",
+					"main_df = update_main_table(\r\n",
+					"    main_df,\r\n",
+					"    attendance_type_df,\r\n",
+					"    main_df[\"visitarchiveid\"] == attendance_type_df[\"visitarchiveid\"],\r\n",
+					"    [\"EC_Att_Cat_ECDS\", \"EC_ATT_Cat_DESC\"]\r\n",
+					")\r\n",
+					"\r\n",
+					"# ECDS_Chief_Complaint Update\r\n",
+					"chief_complaint_df = spark.read.table(\"ECDS_Chief_Complaint_vw\")\r\n",
+					"main_df = update_main_table(\r\n",
+					"    main_df,\r\n",
+					"    chief_complaint_df,\r\n",
+					"    main_df[\"visitarchiveid\"] == chief_complaint_df[\"visitarchiveid\"],\r\n",
+					"    [\"Emergency_Care_Chief_Complaint_SNOMED\", \"Emergency_Care_Chief_Complaint_DESC\"]\r\n",
+					")\r\n",
+					"\r\n",
+					"# ECDS_Injury Update\r\n",
+					"injury_df = spark.read.table(\"ECDS_Injury_vw\")\r\n",
+					"injury_update_columns = [\r\n",
+					"    \"Injury_Date_Time\", \"EC_Place_Of_Injury_SNOMED\", \"EC_Place_Of_Injury_DESC\",\r\n",
+					"    \"EC_Injury_Intent_SNOMED\", \"EC_Injury_Intent_DESC\", \"EC_Injury_Activity_Status_SNOMED\",\r\n",
+					"    \"EC_Injury_Activity_Status_DESC\", \"EC_Injury_Activity_Type_SNOMED\", \"EC_Injury_Activity_Type_DESC\",\r\n",
+					"    \"EC_Injury_Mechanism_SNOMED\", \"EC_Injury_Mechanism_DESC\"\r\n",
+					"]\r\n",
+					"main_df = update_main_table(\r\n",
+					"    main_df,\r\n",
+					"    injury_df,\r\n",
+					"    main_df[\"visitarchiveid\"] == injury_df[\"visitarchiveid\"],\r\n",
+					"    injury_update_columns\r\n",
+					")\r\n",
+					"\r\n",
+					"# ECDS_InjuryV2 Update\r\n",
+					"injuryv2_df = spark.read.table(\"ECDS_InjuryV2_vw\")\r\n",
+					"main_df = update_main_table(\r\n",
+					"    main_df,\r\n",
+					"    injuryv2_df,\r\n",
+					"    main_df[\"visitarchiveid\"] == injuryv2_df[\"visitarchiveid\"],\r\n",
+					"    injury_update_columns  # Same columns as ECDS_Injury\r\n",
+					")\r\n",
+					"\r\n",
+					"# ECDS_DischargeStatus Update\r\n",
+					"discharge_status_df = spark.read.table(\"ECDS_DischargeStatus_vw\")\r\n",
+					"main_df = update_main_table(\r\n",
+					"    main_df,\r\n",
+					"    discharge_status_df,\r\n",
+					"    main_df[\"visitarchiveid\"] == discharge_status_df[\"visitarchiveid\"],\r\n",
+					"    [\"EC_Discharge_Status_SNOMED\", \"EC_Discharge_Status_DESC\"]\r\n",
+					")\r\n",
+					"\r\n",
+					"# ECDS_DischargeDestination Update\r\n",
+					"discharge_destination_df = spark.read.table(\"ECDS_DischargeDestination_vw\")\r\n",
+					"main_df = update_main_table(\r\n",
+					"    main_df,\r\n",
+					"    discharge_destination_df,\r\n",
+					"    main_df[\"visitarchiveid\"] == discharge_destination_df[\"visitarchiveid\"],\r\n",
+					"    [\"EC_Discharge_Destination_SNOMED\", \"EC_Discharge_Destination_DESC\"]\r\n",
+					")\r\n",
+					"\r\n",
+					"# ECDS_FollowUp Update\r\n",
+					"followup_df = spark.read.table(\"ECDS_FollowUp_vw\")\r\n",
+					"main_df = update_main_table(\r\n",
+					"    main_df,\r\n",
+					"    followup_df,\r\n",
+					"    main_df[\"visitarchiveid\"] == followup_df[\"visitarchiveid\"],\r\n",
+					"    [\"EC_Discharge_Follow_Up_SNOMED\", \"EC_Discharge_Follow_Up_DESC\"]\r\n",
+					")\r\n",
+					"\r\n",
+					"# ECDS_Overseas_Status Update\r\n",
+					"overseas_status_df = spark.read.table(\"ECDS_Overseas_Status_vw\")\r\n",
+					"main_df = update_main_table(\r\n",
+					"    main_df,\r\n",
+					"    overseas_status_df,\r\n",
+					"    main_df[\"visitarchiveid\"] == overseas_status_df[\"visitarchiveid\"],\r\n",
+					"    [\"Overseas_Vis_Charging_Cat_SNOMED\", \"Overseas_Vis_Charging_Cat_DESC\"]\r\n",
+					")\r\n",
+					"\r\n",
+					"# EmergencyCareDepartmentType Update\r\n",
+					"last_location_df = spark.read.table(\"SPB.PatientEmergencyVisits_LastLocation_vw\")\r\n",
+					"main_df = main_df.join(last_location_df, \"visitarchiveid\", \"left_outer\").select(\r\n",
+					"    main_df[\"*\"],\r\n",
+					"    when(col(\"ward\").like(\"%utc%\"), \"3\").otherwise(\"1\").alias(\"EmergencyCareDepartmentType\"),\r\n",
+					"    when(col(\"ward\").like(\"%utc%\") & (main_df[\"EmergencyCareDepartmentType\"] != \"3\"), current_timestamp())\r\n",
+					"    .when(~col(\"ward\").like(\"%utc%\") & (main_df[\"EmergencyCareDepartmentType\"] != \"1\"), current_timestamp())\r\n",
+					"    .otherwise(main_df[\"AmendedOn\"]).alias(\"AmendedOn\")\r\n",
+					")\r\n",
+					"\r\n",
+					"# Discharge Info Given Update\r\n",
+					"clinical_note_df = spark.read.table(\"SPB.ClinicalNoteData_Current\")\r\n",
+					"discharge_info_df = clinical_note_df.filter(col(\"NoteKey\") == \"Discharge Advice Given\") \\\r\n",
+					"    .select(\r\n",
+					"        col(\"visitarchiveid\"),\r\n",
+					"        when(coalesce(col(\"NoteValue\"), lit(\"no\")) != \"no\", \"Y\").otherwise(\"N\").alias(\"EC_Discharge_Info_Given\")\r\n",
+					"    )\r\n",
+					"main_df = update_main_table(\r\n",
+					"    main_df,\r\n",
+					"    discharge_info_df,\r\n",
+					"    main_df[\"visitarchiveid\"] == discharge_info_df[\"visitarchiveid\"],\r\n",
+					"    [\"EC_Discharge_Info_Given\"]\r\n",
+					")\r\n",
+					"\r\n",
+					"# Write the updated DataFrame back to the Delta table\r\n",
+					"main_df.write.format(\"delta\").mode(\"overwrite\").save(main_table_path)\r\n",
+					"\r\n",
+					"# Log the number of affected rows (optional)\r\n",
+					"affected_rows = main_df.count()\r\n",
+					"print(f\"Number of rows in the target table after update: {affected_rows}\")"
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
