@@ -1,0 +1,186 @@
+{
+	"name": "12_ECDS_ExpectedDateTimeOfTreatment_Update_sp",
+	"properties": {
+		"folder": {
+			"name": "ECDS_prod_notebooks"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "82b2b528-6e7b-470e-9391-1e789b95a7cd"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "python"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# ECDS_ExpectedDateTimeOfTreatment_Update_sp"
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Version 1\r\n",
+					"\r\n",
+					"Delta Lake 0.8+"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql import SparkSession\r\n",
+					"from pyspark.sql.functions import col, when, coalesce, lit\r\n",
+					"from delta.tables import DeltaTable\r\n",
+					"\r\n",
+					"# Define paths\r\n",
+					"storage_account_name = \"synapsestr\"\r\n",
+					"delta_container_name = \"nervecentre-delta\"\r\n",
+					"target_path = f'abfss://{delta_container_name}@{storage_account_name}.dfs.core.windows.net/ECDS_ExpectedDateTimeOfTreatment'\r\n",
+					"source_path = f'abfss://{delta_container_name}@{storage_account_name}.dfs.core.windows.net/ECDS_ExpectedDateTimeOfTreatment_vw'\r\n",
+					"\r\n",
+					"# Create SparkSession\r\n",
+					"spark = SparkSession.builder.appName(\"ECDS_ExpectedDateTimeOfTreatment_Update\").getOrCreate()\r\n",
+					"\r\n",
+					"# Read target table and source view\r\n",
+					"target_table = DeltaTable.forPath(spark, target_path)\r\n",
+					"source_df = spark.read.format(\"delta\").load(source_path)\r\n",
+					"\r\n",
+					"# Perform the MERGE operation\r\n",
+					"(target_table.alias(\"TGT\")\r\n",
+					" .merge(\r\n",
+					"    source_df.alias(\"SRS\"),\r\n",
+					"    \"TGT.visitarchiveid = SRS.visitarchiveid\"\r\n",
+					" )\r\n",
+					" .whenMatchedUpdate(\r\n",
+					"    condition = \"\"\"\r\n",
+					"        (COALESCE(TGT.Emergency_Care_Expected_Timestamp, to_timestamp('1900-01-01')) != COALESCE(SRS.Emergency_Care_Expected_Timestamp, to_timestamp('1900-01-01'))) OR\r\n",
+					"        (COALESCE(TGT.Emergency_Care_Treatment_Timestamp, to_timestamp('1900-01-01')) != COALESCE(SRS.Emergency_Care_Treatment_Timestamp, to_timestamp('1900-01-01')))\r\n",
+					"    \"\"\",\r\n",
+					"    set = {\r\n",
+					"        \"Emergency_Care_Expected_Timestamp\": \"SRS.Emergency_Care_Expected_Timestamp\",\r\n",
+					"        \"Emergency_Care_Treatment_Timestamp\": \"SRS.Emergency_Care_Treatment_Timestamp\"\r\n",
+					"    }\r\n",
+					" )\r\n",
+					" .whenNotMatchedInsert(\r\n",
+					"    values = {\r\n",
+					"        \"visitarchiveid\": \"SRS.visitarchiveid\",\r\n",
+					"        \"Emergency_Care_Expected_Timestamp\": \"SRS.Emergency_Care_Expected_Timestamp\",\r\n",
+					"        \"Emergency_Care_Treatment_Timestamp\": \"SRS.Emergency_Care_Treatment_Timestamp\"\r\n",
+					"    }\r\n",
+					" )\r\n",
+					" .whenNotMatchedBySource()\r\n",
+					" .delete()\r\n",
+					" .execute())\r\n",
+					"\r\n",
+					"# Log the number of affected rows (optional)\r\n",
+					"affected_rows = target_table.toDF().count()\r\n",
+					"print(f\"Number of rows in the target table after merge: {affected_rows}\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Version 2\r\n",
+					"\r\n",
+					"Earlier Delta Lake"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"from pyspark.sql import SparkSession\r\n",
+					"from pyspark.sql.functions import col, when, coalesce, lit\r\n",
+					"\r\n",
+					"# Define paths\r\n",
+					"storage_account_name = \"synapsestr\"\r\n",
+					"delta_container_name = \"nervecentre-delta\"\r\n",
+					"target_path = f'abfss://{delta_container_name}@{storage_account_name}.dfs.core.windows.net/ECDS_ExpectedDateTimeOfTreatment'\r\n",
+					"source_path = f'abfss://{delta_container_name}@{storage_account_name}.dfs.core.windows.net/ECDS_ExpectedDateTimeOfTreatment_vw'\r\n",
+					"\r\n",
+					"# Create SparkSession\r\n",
+					"spark = SparkSession.builder.appName(\"ECDS_ExpectedDateTimeOfTreatment_Update\").getOrCreate()\r\n",
+					"\r\n",
+					"# Read target table and source view\r\n",
+					"target_df = spark.read.format(\"delta\").load(target_path)\r\n",
+					"source_df = spark.read.format(\"delta\").load(source_path)\r\n",
+					"\r\n",
+					"# Perform the update\r\n",
+					"updated_df = target_df.join(source_df, \"visitarchiveid\", \"full_outer\")\r\n",
+					"\r\n",
+					"updated_df = updated_df.select(\r\n",
+					"    coalesce(target_df.visitarchiveid, source_df.visitarchiveid).alias(\"visitarchiveid\"),\r\n",
+					"    when(source_df.Emergency_Care_Expected_Timestamp.isNotNull(), source_df.Emergency_Care_Expected_Timestamp)\r\n",
+					"    .otherwise(target_df.Emergency_Care_Expected_Timestamp).alias(\"Emergency_Care_Expected_Timestamp\"),\r\n",
+					"    when(source_df.Emergency_Care_Treatment_Timestamp.isNotNull(), source_df.Emergency_Care_Treatment_Timestamp)\r\n",
+					"    .otherwise(target_df.Emergency_Care_Treatment_Timestamp).alias(\"Emergency_Care_Treatment_Timestamp\")\r\n",
+					")\r\n",
+					"\r\n",
+					"# Remove rows that are not in the source\r\n",
+					"updated_df = updated_df.join(source_df, \"visitarchiveid\", \"left_semi\")\r\n",
+					"\r\n",
+					"# Write the updated DataFrame back to the Delta table\r\n",
+					"updated_df.write.format(\"delta\").mode(\"overwrite\").save(target_path)\r\n",
+					"\r\n",
+					"# Log the number of affected rows (optional)\r\n",
+					"affected_rows = updated_df.count()\r\n",
+					"print(f\"Number of rows in the target table after update: {affected_rows}\")"
+				],
+				"execution_count": null
+			}
+		]
+	}
+}

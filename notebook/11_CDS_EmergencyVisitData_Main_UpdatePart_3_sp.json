@@ -1,0 +1,188 @@
+{
+	"name": "11_CDS_EmergencyVisitData_Main_UpdatePart_3_sp",
+	"properties": {
+		"folder": {
+			"name": "ECDS_prod_notebooks"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "2498a4d3-febb-41a5-8fd1-7ece4103a2b8"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "python"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# CDS_EmergencyVisitData_Main_UpdatePart_3_sp"
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Version 1\r\n",
+					"\r\n",
+					"Delta Lake 0.8+"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql import SparkSession\r\n",
+					"from pyspark.sql.functions import col, when, coalesce, lit, current_timestamp\r\n",
+					"from delta.tables import DeltaTable\r\n",
+					"\r\n",
+					"# Define paths\r\n",
+					"storage_account_name = \"synapsestr\"\r\n",
+					"delta_container_name = \"nervecentre-delta\"\r\n",
+					"main_table_path = f'abfss://{delta_container_name}@{storage_account_name}.dfs.core.windows.net/ECDS_EmergencyVisitData_Main'\r\n",
+					"view_path = f'abfss://{delta_container_name}@{storage_account_name}.dfs.core.windows.net/ECDS_EmergencyVisitData_Main_UpdatePart_3_V2_vw'\r\n",
+					"\r\n",
+					"# Create SparkSession\r\n",
+					"spark = SparkSession.builder.appName(\"ECDS_EmergencyVisitData_Main_UpdatePart_3\").getOrCreate()\r\n",
+					"\r\n",
+					"# Read main table and view\r\n",
+					"main_table = DeltaTable.forPath(spark, main_table_path)\r\n",
+					"view_df = spark.read.format(\"delta\").load(view_path)\r\n",
+					"\r\n",
+					"# Define the columns to update\r\n",
+					"update_columns = [\r\n",
+					"    \"AmbulanceIncidentNumber\", \"EC_Att_No\", \"Initial_Assmt_Date_Time\",\r\n",
+					"    \"Emergency_Care_Acuity\", \"Manchester_Triage_Score\", \"Date_Time_Seen_for_Treatment\",\r\n",
+					"    \"Decided_To_Admit_Date_Time\", \"EC_Clinically_Ready_to_Proceed_Timestamp\",\r\n",
+					"    \"EC_Attendance_Conclusion_Date_Time\", \"EC_Departure_Date_Time\"\r\n",
+					"]\r\n",
+					"\r\n",
+					"# Perform the MERGE operation\r\n",
+					"(main_table.alias(\"tgt\")\r\n",
+					" .merge(\r\n",
+					"    view_df.alias(\"src\"),\r\n",
+					"    \"tgt.visitarchiveid = src.visitarchiveid\"\r\n",
+					" )\r\n",
+					" .whenMatchedUpdate(\r\n",
+					"    condition = \" OR \".join([f\"(COALESCE(src.{col}, lit('X')) != COALESCE(tgt.{col}, lit('X')))\" for col in update_columns]),\r\n",
+					"    set = {col: f\"src.{col}\" for col in update_columns} | {\"AmendedOn\": \"current_timestamp()\"}\r\n",
+					" )\r\n",
+					" .execute())\r\n",
+					"\r\n",
+					"# Log the number of affected rows (optional)\r\n",
+					"affected_rows = main_table.toDF().count()\r\n",
+					"print(f\"Number of rows in the target table after update: {affected_rows}\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Version 2\r\n",
+					"\r\n",
+					"Earlier version of Delta Lake"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"from pyspark.sql import SparkSession\r\n",
+					"from pyspark.sql.functions import col, when, coalesce, lit, current_timestamp\r\n",
+					"\r\n",
+					"# Define paths\r\n",
+					"storage_account_name = \"synapsestr\"\r\n",
+					"delta_container_name = \"nervecentre-delta\"\r\n",
+					"main_table_path = f'abfss://{delta_container_name}@{storage_account_name}.dfs.core.windows.net/ECDS_EmergencyVisitData_Main'\r\n",
+					"view_path = f'abfss://{delta_container_name}@{storage_account_name}.dfs.core.windows.net/ECDS_EmergencyVisitData_Main_UpdatePart_3_V2_vw'\r\n",
+					"\r\n",
+					"# Create SparkSession\r\n",
+					"spark = SparkSession.builder.appName(\"ECDS_EmergencyVisitData_Main_UpdatePart_3\").getOrCreate()\r\n",
+					"\r\n",
+					"# Read main table and view\r\n",
+					"main_df = spark.read.format(\"delta\").load(main_table_path)\r\n",
+					"view_df = spark.read.format(\"delta\").load(view_path)\r\n",
+					"\r\n",
+					"# Define the columns to update\r\n",
+					"update_columns = [\r\n",
+					"    \"AmbulanceIncidentNumber\", \"EC_Att_No\", \"Initial_Assmt_Date_Time\",\r\n",
+					"    \"Emergency_Care_Acuity\", \"Manchester_Triage_Score\", \"Date_Time_Seen_for_Treatment\",\r\n",
+					"    \"Decided_To_Admit_Date_Time\", \"EC_Clinically_Ready_to_Proceed_Timestamp\",\r\n",
+					"    \"EC_Attendance_Conclusion_Date_Time\", \"EC_Departure_Date_Time\"\r\n",
+					"]\r\n",
+					"\r\n",
+					"# Perform the update\r\n",
+					"updated_df = main_df.join(view_df, \"visitarchiveid\", \"left_outer\")\r\n",
+					"for column in update_columns:\r\n",
+					"    updated_df = updated_df.withColumn(\r\n",
+					"        column,\r\n",
+					"        when(coalesce(view_df[column], lit(\"X\")) != coalesce(main_df[column], lit(\"X\")),\r\n",
+					"             view_df[column]).otherwise(main_df[column])\r\n",
+					"    )\r\n",
+					"\r\n",
+					"updated_df = updated_df.withColumn(\r\n",
+					"    \"AmendedOn\",\r\n",
+					"    when(coalesce(view_df[update_columns[0]], lit(\"X\")) != coalesce(main_df[update_columns[0]], lit(\"X\")),\r\n",
+					"         current_timestamp()).otherwise(main_df[\"AmendedOn\"])\r\n",
+					")\r\n",
+					"\r\n",
+					"# Write the updated DataFrame back to the Delta table\r\n",
+					"updated_df.write.format(\"delta\").mode(\"overwrite\").save(main_table_path)\r\n",
+					"\r\n",
+					"# Log the number of affected rows (optional)\r\n",
+					"affected_rows = updated_df.count()\r\n",
+					"print(f\"Number of rows in the target table after update: {affected_rows}\")"
+				],
+				"execution_count": null
+			}
+		]
+	}
+}

@@ -1,0 +1,213 @@
+{
+	"name": "13_ECDS_Investigations_Update_Part1_sp",
+	"properties": {
+		"folder": {
+			"name": "ECDS_prod_notebooks"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "df1dc2d5-6017-48eb-840a-cd23183b9aa4"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "python"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# "
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# CDS_Investigations_Update_Part1_sp"
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Version 1"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql import SparkSession\r\n",
+					"from pyspark.sql.functions import col, when, coalesce, lit, current_timestamp\r\n",
+					"from delta.tables import DeltaTable\r\n",
+					"\r\n",
+					"# Define paths\r\n",
+					"storage_account_name = \"synapsestr\"\r\n",
+					"delta_container_name = \"nervecentre-delta\"\r\n",
+					"target_path = f'abfss://{delta_container_name}@{storage_account_name}.dfs.core.windows.net/ECDS_Investigations'\r\n",
+					"source_path = f'abfss://{delta_container_name}@{storage_account_name}.dfs.core.windows.net/ECDS_Investigations_vw'\r\n",
+					"\r\n",
+					"# Create SparkSession\r\n",
+					"spark = SparkSession.builder.appName(\"ECDS_Investigations_Update_Part1\").getOrCreate()\r\n",
+					"\r\n",
+					"# Read target table and source view\r\n",
+					"target_table = DeltaTable.forPath(spark, target_path)\r\n",
+					"source_df = spark.read.format(\"delta\").load(source_path)\r\n",
+					"\r\n",
+					"# Perform the MERGE operation\r\n",
+					"(target_table.alias(\"TGT\")\r\n",
+					" .merge(\r\n",
+					"    source_df.alias(\"SRC\"),\r\n",
+					"    \"TGT.visitarchiveid = SRC.visitarchiveid AND TGT.InvestigationOrder = SRC.InvestigationOrder\"\r\n",
+					" )\r\n",
+					" .whenMatchedUpdate(\r\n",
+					"    condition = \"\"\"\r\n",
+					"        (COALESCE(TGT.EC_Investigation_Date_Time, to_timestamp('1900-01-01')) != COALESCE(SRC.EC_Investigation_Date_Time, to_timestamp('1900-01-01'))) OR\r\n",
+					"        (COALESCE(TGT.EC_InvestigationCodeSNOMED, 'X') != COALESCE(SRC.EC_InvestigationCodeSNOMED, 'X')) OR\r\n",
+					"        (COALESCE(TGT.EC_InvestigationCodeCDS, 'X') != COALESCE(SRC.EC_InvestigationCodeCDS, 'X'))\r\n",
+					"    \"\"\",\r\n",
+					"    set = {\r\n",
+					"        \"InvestigationDesc\": \"SRC.InvestigationDesc\",\r\n",
+					"        \"EC_Investigation_Date_Time\": \"SRC.EC_Investigation_Date_Time\",\r\n",
+					"        \"EC_InvestigationCodeSNOMED\": \"SRC.EC_InvestigationCodeSNOMED\",\r\n",
+					"        \"EC_InvestigationCodeCDS\": \"SRC.EC_InvestigationCodeCDS\",\r\n",
+					"        \"AmendedOn\": \"current_timestamp()\"\r\n",
+					"    }\r\n",
+					" )\r\n",
+					" .whenNotMatchedInsert(\r\n",
+					"    values = {\r\n",
+					"        \"visitarchiveid\": \"SRC.visitarchiveid\",\r\n",
+					"        \"InvestigationOrder\": \"SRC.InvestigationOrder\",\r\n",
+					"        \"InvestigationDesc\": \"SRC.InvestigationDesc\",\r\n",
+					"        \"EC_Investigation_Date_Time\": \"SRC.EC_Investigation_Date_Time\",\r\n",
+					"        \"EC_InvestigationCodeSNOMED\": \"SRC.EC_InvestigationCodeSNOMED\",\r\n",
+					"        \"EC_InvestigationCodeCDS\": \"SRC.EC_InvestigationCodeCDS\"\r\n",
+					"    }\r\n",
+					" )\r\n",
+					" .whenNotMatchedBySource()\r\n",
+					" .delete()\r\n",
+					" .execute())\r\n",
+					"\r\n",
+					"# Log the number of affected rows (optional)\r\n",
+					"affected_rows = target_table.toDF().count()\r\n",
+					"print(f\"Number of rows in the target table after merge: {affected_rows}\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Version 2"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"from pyspark.sql import SparkSession\r\n",
+					"from pyspark.sql.functions import col, when, coalesce, lit, current_timestamp\r\n",
+					"\r\n",
+					"# Define paths\r\n",
+					"storage_account_name = \"synapsestr\"\r\n",
+					"delta_container_name = \"nervecentre-delta\"\r\n",
+					"target_path = f'abfss://{delta_container_name}@{storage_account_name}.dfs.core.windows.net/ECDS_Investigations'\r\n",
+					"source_path = f'abfss://{delta_container_name}@{storage_account_name}.dfs.core.windows.net/ECDS_Investigations_vw'\r\n",
+					"\r\n",
+					"# Create SparkSession\r\n",
+					"spark = SparkSession.builder.appName(\"ECDS_Investigations_Update_Part1\").getOrCreate()\r\n",
+					"\r\n",
+					"# Read target table and source view\r\n",
+					"target_df = spark.read.format(\"delta\").load(target_path)\r\n",
+					"source_df = spark.read.format(\"delta\").load(source_path)\r\n",
+					"\r\n",
+					"# Perform the update\r\n",
+					"joined_df = target_df.join(source_df, [\"visitarchiveid\", \"InvestigationOrder\"], \"full_outer\")\r\n",
+					"\r\n",
+					"updated_df = joined_df.select(\r\n",
+					"    coalesce(target_df.visitarchiveid, source_df.visitarchiveid).alias(\"visitarchiveid\"),\r\n",
+					"    coalesce(target_df.InvestigationOrder, source_df.InvestigationOrder).alias(\"InvestigationOrder\"),\r\n",
+					"    when(source_df.InvestigationDesc.isNotNull(), source_df.InvestigationDesc)\r\n",
+					"    .otherwise(target_df.InvestigationDesc).alias(\"InvestigationDesc\"),\r\n",
+					"    when(source_df.EC_Investigation_Date_Time.isNotNull(), source_df.EC_Investigation_Date_Time)\r\n",
+					"    .otherwise(target_df.EC_Investigation_Date_Time).alias(\"EC_Investigation_Date_Time\"),\r\n",
+					"    when(source_df.EC_InvestigationCodeSNOMED.isNotNull(), source_df.EC_InvestigationCodeSNOMED)\r\n",
+					"    .otherwise(target_df.EC_InvestigationCodeSNOMED).alias(\"EC_InvestigationCodeSNOMED\"),\r\n",
+					"    when(source_df.EC_InvestigationCodeCDS.isNotNull(), source_df.EC_InvestigationCodeCDS)\r\n",
+					"    .otherwise(target_df.EC_InvestigationCodeCDS).alias(\"EC_InvestigationCodeCDS\"),\r\n",
+					"    when(\r\n",
+					"        (coalesce(source_df.EC_Investigation_Date_Time, lit(\"1900-01-01\")) != coalesce(target_df.EC_Investigation_Date_Time, lit(\"1900-01-01\"))) |\r\n",
+					"        (coalesce(source_df.EC_InvestigationCodeSNOMED, lit(\"X\")) != coalesce(target_df.EC_InvestigationCodeSNOMED, lit(\"X\"))) |\r\n",
+					"        (coalesce(source_df.EC_InvestigationCodeCDS, lit(\"X\")) != coalesce(target_df.EC_InvestigationCodeCDS, lit(\"X\"))),\r\n",
+					"        current_timestamp()\r\n",
+					"    ).otherwise(target_df.AmendedOn).alias(\"AmendedOn\")\r\n",
+					")\r\n",
+					"\r\n",
+					"# Remove rows that are not in the source\r\n",
+					"final_df = updated_df.join(source_df, [\"visitarchiveid\", \"InvestigationOrder\"], \"left_semi\")\r\n",
+					"\r\n",
+					"# Write the updated DataFrame back to the Delta table\r\n",
+					"final_df.write.format(\"delta\").mode(\"overwrite\").save(target_path)\r\n",
+					"\r\n",
+					"# Log the number of affected rows (optional)\r\n",
+					"affected_rows = final_df.count()\r\n",
+					"print(f\"Number of rows in the target table after update: {affected_rows}\")"
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
