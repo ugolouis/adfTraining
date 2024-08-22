@@ -1,0 +1,212 @@
+{
+	"name": "17_ECDS_Procedure_Update_Part1_sp",
+	"properties": {
+		"folder": {
+			"name": "ECDS_prod_notebooks"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "f1ee72f6-acd8-431d-a077-a33531e5ca49"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "python"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# ECDS_Procedure_Update_Part1_sp"
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Version 1"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql import SparkSession\r\n",
+					"from pyspark.sql.functions import col, when, coalesce, lit, current_timestamp\r\n",
+					"from delta.tables import DeltaTable\r\n",
+					"\r\n",
+					"# Define paths\r\n",
+					"storage_account_name = \"synapsestr\"\r\n",
+					"delta_container_name = \"nervecentre-delta\"\r\n",
+					"target_path = f'abfss://{delta_container_name}@{storage_account_name}.dfs.core.windows.net/ECDS_Procedure'\r\n",
+					"source_path = f'abfss://{delta_container_name}@{storage_account_name}.dfs.core.windows.net/ECDS_Procedures_vw'\r\n",
+					"\r\n",
+					"# Create SparkSession\r\n",
+					"spark = SparkSession.builder.appName(\"ECDS_Procedure_Update_Part1\").getOrCreate()\r\n",
+					"\r\n",
+					"# Read target table and source view\r\n",
+					"target_table = DeltaTable.forPath(spark, target_path)\r\n",
+					"source_df = spark.read.format(\"delta\").load(source_path)\r\n",
+					"\r\n",
+					"# Perform the MERGE operation\r\n",
+					"(target_table.alias(\"TGT\")\r\n",
+					" .merge(\r\n",
+					"    source_df.alias(\"SRC\"),\r\n",
+					"    \"TGT.visitarchiveid = SRC.visitarchiveid AND TGT.ProcedureOrder = SRC.ProcedureOrder\"\r\n",
+					" )\r\n",
+					" .whenMatchedUpdate(\r\n",
+					"    condition = \"\"\"\r\n",
+					"        (COALESCE(TGT.ProcedureDesc, 'X') != COALESCE(SRC.ProcedureDesc, 'X')) OR\r\n",
+					"        (COALESCE(TGT.EC_Procedure_Date_Time, to_timestamp('1900-01-01')) != COALESCE(SRC.EC_Procedure_Date_Time, to_timestamp('1900-01-01'))) OR\r\n",
+					"        (COALESCE(TGT.EC_ProcedureCodeSNOMED, 'X') != COALESCE(SRC.EC_ProcedureCodeSNOMED, 'X')) OR\r\n",
+					"        (COALESCE(TGT.EC_ProcedureCodeCDS, 'X') != COALESCE(SRC.EC_ProcedureCodeCDS, 'X'))\r\n",
+					"    \"\"\",\r\n",
+					"    set = {\r\n",
+					"        \"ProcedureDesc\": \"SRC.ProcedureDesc\",\r\n",
+					"        \"EC_Procedure_Date_Time\": \"SRC.EC_Procedure_Date_Time\",\r\n",
+					"        \"EC_ProcedureCodeSNOMED\": \"SRC.EC_ProcedureCodeSNOMED\",\r\n",
+					"        \"EC_ProcedureCodeCDS\": \"SRC.EC_ProcedureCodeCDS\",\r\n",
+					"        \"AmendOn\": \"current_timestamp()\"\r\n",
+					"    }\r\n",
+					" )\r\n",
+					" .whenNotMatchedInsert(\r\n",
+					"    values = {\r\n",
+					"        \"visitarchiveid\": \"SRC.visitarchiveid\",\r\n",
+					"        \"ProcedureOrder\": \"SRC.ProcedureOrder\",\r\n",
+					"        \"ProcedureDesc\": \"SRC.ProcedureDesc\",\r\n",
+					"        \"EC_Procedure_Date_Time\": \"SRC.EC_Procedure_Date_Time\",\r\n",
+					"        \"EC_ProcedureCodeSNOMED\": \"SRC.EC_ProcedureCodeSNOMED\",\r\n",
+					"        \"EC_ProcedureCodeCDS\": \"SRC.EC_ProcedureCodeCDS\"\r\n",
+					"    }\r\n",
+					" )\r\n",
+					" .whenNotMatchedBySource()\r\n",
+					" .delete()\r\n",
+					" .execute())\r\n",
+					"\r\n",
+					"# Log the number of affected rows (optional)\r\n",
+					"affected_rows = target_table.toDF().count()\r\n",
+					"print(f\"Number of rows in the target table after merge: {affected_rows}\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Version 2"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"from pyspark.sql import SparkSession\r\n",
+					"from pyspark.sql.functions import col, when, coalesce, lit, current_timestamp\r\n",
+					"from delta.tables import DeltaTable\r\n",
+					"\r\n",
+					"# Define paths\r\n",
+					"storage_account_name = \"synapsestr\"\r\n",
+					"delta_container_name = \"nervecentre-delta\"\r\n",
+					"target_path = f'abfss://{delta_container_name}@{storage_account_name}.dfs.core.windows.net/ECDS_Procedure'\r\n",
+					"source_path = f'abfss://{delta_container_name}@{storage_account_name}.dfs.core.windows.net/ECDS_Procedures_vw'\r\n",
+					"\r\n",
+					"# Create SparkSession\r\n",
+					"spark = SparkSession.builder.appName(\"ECDS_Procedure_Update_Part1\").getOrCreate()\r\n",
+					"\r\n",
+					"# Read target table and source view\r\n",
+					"target_table = DeltaTable.forPath(spark, target_path)\r\n",
+					"source_df = spark.read.format(\"delta\").load(source_path)\r\n",
+					"\r\n",
+					"# Perform the MERGE operation\r\n",
+					"(target_table.alias(\"TGT\")\r\n",
+					" .merge(\r\n",
+					"    source_df.alias(\"SRC\"),\r\n",
+					"    \"TGT.visitarchiveid = SRC.visitarchiveid AND TGT.ProcedureOrder = SRC.ProcedureOrder\"\r\n",
+					" )\r\n",
+					" .whenMatchedUpdate(\r\n",
+					"    condition = \"\"\"\r\n",
+					"        (COALESCE(TGT.ProcedureDesc, 'X') != COALESCE(SRC.ProcedureDesc, 'X')) OR\r\n",
+					"        (COALESCE(TGT.EC_Procedure_Date_Time, to_timestamp('1900-01-01')) != COALESCE(SRC.EC_Procedure_Date_Time, to_timestamp('1900-01-01'))) OR\r\n",
+					"        (COALESCE(TGT.EC_ProcedureCodeSNOMED, 'X') != COALESCE(SRC.EC_ProcedureCodeSNOMED, 'X')) OR\r\n",
+					"        (COALESCE(TGT.EC_ProcedureCodeCDS, 'X') != COALESCE(SRC.EC_ProcedureCodeCDS, 'X'))\r\n",
+					"    \"\"\",\r\n",
+					"    set = {\r\n",
+					"        \"ProcedureDesc\": \"SRC.ProcedureDesc\",\r\n",
+					"        \"EC_Procedure_Date_Time\": \"SRC.EC_Procedure_Date_Time\",\r\n",
+					"        \"EC_ProcedureCodeSNOMED\": \"SRC.EC_ProcedureCodeSNOMED\",\r\n",
+					"        \"EC_ProcedureCodeCDS\": \"SRC.EC_ProcedureCodeCDS\",\r\n",
+					"        \"AmendOn\": \"current_timestamp()\"\r\n",
+					"    }\r\n",
+					" )\r\n",
+					" .whenNotMatchedInsert(\r\n",
+					"    values = {\r\n",
+					"        \"visitarchiveid\": \"SRC.visitarchiveid\",\r\n",
+					"        \"ProcedureOrder\": \"SRC.ProcedureOrder\",\r\n",
+					"        \"ProcedureDesc\": \"SRC.ProcedureDesc\",\r\n",
+					"        \"EC_Procedure_Date_Time\": \"SRC.EC_Procedure_Date_Time\",\r\n",
+					"        \"EC_ProcedureCodeSNOMED\": \"SRC.EC_ProcedureCodeSNOMED\",\r\n",
+					"        \"EC_ProcedureCodeCDS\": \"SRC.EC_ProcedureCodeCDS\"\r\n",
+					"    }\r\n",
+					" )\r\n",
+					" .execute())\r\n",
+					"\r\n",
+					"# Handle deletions separately\r\n",
+					"target_df = target_table.toDF()\r\n",
+					"rows_to_keep = target_df.join(source_df, [\"visitarchiveid\", \"ProcedureOrder\"], \"leftsemi\")\r\n",
+					"rows_to_keep.write.format(\"delta\").mode(\"overwrite\").save(target_path)\r\n",
+					"\r\n",
+					"# Log the number of affected rows (optional)\r\n",
+					"affected_rows = rows_to_keep.count()\r\n",
+					"print(f\"Number of rows in the target table after merge and delete: {affected_rows}\")"
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
