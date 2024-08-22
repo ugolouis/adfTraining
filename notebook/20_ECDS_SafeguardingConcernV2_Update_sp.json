@@ -1,0 +1,233 @@
+{
+	"name": "20_ECDS_SafeguardingConcernV2_Update_sp",
+	"properties": {
+		"folder": {
+			"name": "ECDS_prod_notebooks"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "1506d2f9-08e2-4986-8a54-43588fe1932e"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "python"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# ECDS_SafeguardingConcernV2_Update_sp"
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Version 1"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"# Import necessary libraries\r\n",
+					"from pyspark.sql.functions import col, current_timestamp\r\n",
+					"from delta.tables import DeltaTable\r\n",
+					"\r\n",
+					"# Define paths\r\n",
+					"storage_account_name = \"synapsestr\"\r\n",
+					"delta_container_name = \"nervecentre-delta\"\r\n",
+					"source_delta_path = f'abfss://{delta_container_name}@{storage_account_name}.dfs.core.windows.net/ECDS_DischargeSafeguarding_vw'\r\n",
+					"target_delta_path = f'abfss://{delta_container_name}@{storage_account_name}.dfs.core.windows.net/ECDS_SafeguardingConcern'\r\n",
+					"\r\n",
+					"# Read source view\r\n",
+					"src_df = spark.read.format(\"delta\").load(source_delta_path)\r\n",
+					"\r\n",
+					"# Create a DeltaTable object for the target table\r\n",
+					"target_table = DeltaTable.forPath(spark, target_delta_path)\r\n",
+					"\r\n",
+					"# Define merge and update conditions\r\n",
+					"merge_condition = \"\"\"\r\n",
+					"    tgt.visitarchiveid = src.visitarchiveid AND\r\n",
+					"    tgt.IdOrder = src.DischargeSafeguardingIDOrder\r\n",
+					"\"\"\"\r\n",
+					"\r\n",
+					"update_condition = \"\"\"\r\n",
+					"    (tgt.Safeguarding_Concern <> src.DischargeSafeguardingSNOMED OR\r\n",
+					"     (tgt.Safeguarding_Concern IS NULL AND src.DischargeSafeguardingSNOMED IS NOT NULL) OR\r\n",
+					"     (tgt.Safeguarding_Concern IS NOT NULL AND src.DischargeSafeguardingSNOMED IS NULL)) OR\r\n",
+					"    (tgt.Safeguarding_Concern_Desc <> src.DischargeSafeguardingDesc OR\r\n",
+					"     (tgt.Safeguarding_Concern_Desc IS NULL AND src.DischargeSafeguardingDesc IS NOT NULL) OR\r\n",
+					"     (tgt.Safeguarding_Concern_Desc IS NOT NULL AND src.DischargeSafeguardingDesc IS NULL))\r\n",
+					"\"\"\"\r\n",
+					"\r\n",
+					"# Perform the MERGE operation\r\n",
+					"(target_table.alias(\"tgt\")\r\n",
+					" .merge(\r\n",
+					"    src_df.alias(\"src\"),\r\n",
+					"    merge_condition\r\n",
+					" )\r\n",
+					" .whenMatchedUpdate(\r\n",
+					"    condition=update_condition,\r\n",
+					"    set={\r\n",
+					"        \"Safeguarding_Concern\": \"src.DischargeSafeguardingSNOMED\",\r\n",
+					"        \"Safeguarding_Concern_Desc\": \"src.DischargeSafeguardingDesc\",\r\n",
+					"        \"AmendOn\": current_timestamp()\r\n",
+					"    }\r\n",
+					" )\r\n",
+					" .whenNotMatchedInsert(\r\n",
+					"    values={\r\n",
+					"        \"visitarchiveid\": \"src.visitarchiveid\",\r\n",
+					"        \"IdOrder\": \"src.DischargeSafeguardingIDOrder\",\r\n",
+					"        \"Safeguarding_Concern\": \"src.DischargeSafeguardingSNOMED\",\r\n",
+					"        \"Safeguarding_Concern_Desc\": \"src.DischargeSafeguardingDesc\"\r\n",
+					"    }\r\n",
+					" )\r\n",
+					" .whenNotMatchedBySource()\r\n",
+					" .delete()\r\n",
+					" .execute())\r\n",
+					"\r\n",
+					"# Log the number of affected rows (optional)\r\n",
+					"affected_rows = target_table.toDF().count()\r\n",
+					"print(f\"Number of rows in the target table after merge: {affected_rows}\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Version 2 "
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Import necessary libraries\r\n",
+					"from pyspark.sql.functions import col, current_timestamp\r\n",
+					"from delta.tables import DeltaTable\r\n",
+					"from pyspark.sql.types import *\r\n",
+					"\r\n",
+					"# Define paths\r\n",
+					"storage_account_name = \"synapsestr\"\r\n",
+					"delta_container_name = \"nervecentre-delta\"\r\n",
+					"source_delta_path = f'abfss://{delta_container_name}@{storage_account_name}.dfs.core.windows.net/ECDS_DischargeSafeguarding_vw'\r\n",
+					"target_delta_path = f'abfss://{delta_container_name}@{storage_account_name}.dfs.core.windows.net/ECDS_SafeguardingConcern'\r\n",
+					"\r\n",
+					"# Read source view\r\n",
+					"src_df = spark.read.format(\"delta\").load(source_delta_path)\r\n",
+					"\r\n",
+					"# Create a DeltaTable object for the target table\r\n",
+					"target_table = DeltaTable.forPath(spark, target_delta_path)\r\n",
+					"\r\n",
+					"# Perform the MERGE operation\r\n",
+					"merge_stmt = target_table.merge(\r\n",
+					"    src_df.alias(\"src\"),\r\n",
+					"    \"tgt.visitarchiveid = src.visitarchiveid AND tgt.IdOrder = src.DischargeSafeguardingIDOrder\"\r\n",
+					")\r\n",
+					"\r\n",
+					"# WHEN MATCHED clause\r\n",
+					"merge_stmt = merge_stmt.whenMatchedUpdate(\r\n",
+					"    condition = \"\"\"\r\n",
+					"        (tgt.Safeguarding_Concern <> src.DischargeSafeguardingSNOMED OR\r\n",
+					"         (tgt.Safeguarding_Concern IS NULL AND src.DischargeSafeguardingSNOMED IS NOT NULL) OR\r\n",
+					"         (tgt.Safeguarding_Concern IS NOT NULL AND src.DischargeSafeguardingSNOMED IS NULL)) OR\r\n",
+					"        (tgt.Safeguarding_Concern_Desc <> src.DischargeSafeguardingDesc OR\r\n",
+					"         (tgt.Safeguarding_Concern_Desc IS NULL AND src.DischargeSafeguardingDesc IS NOT NULL) OR\r\n",
+					"         (tgt.Safeguarding_Concern_Desc IS NOT NULL AND src.DischargeSafeguardingDesc IS NULL))\r\n",
+					"    \"\"\",\r\n",
+					"    set = {\r\n",
+					"        \"Safeguarding_Concern\": \"src.DischargeSafeguardingSNOMED\",\r\n",
+					"        \"Safeguarding_Concern_Desc\": \"src.DischargeSafeguardingDesc\",\r\n",
+					"        \"AmendOn\": \"current_timestamp()\"\r\n",
+					"    }\r\n",
+					")\r\n",
+					"\r\n",
+					"# WHEN NOT MATCHED clause\r\n",
+					"merge_stmt = merge_stmt.whenNotMatchedInsert(\r\n",
+					"    values = {\r\n",
+					"        \"visitarchiveid\": \"src.visitarchiveid\",\r\n",
+					"        \"IdOrder\": \"src.DischargeSafeguardingIDOrder\",\r\n",
+					"        \"Safeguarding_Concern\": \"src.DischargeSafeguardingSNOMED\",\r\n",
+					"        \"Safeguarding_Concern_Desc\": \"src.DischargeSafeguardingDesc\"\r\n",
+					"    }\r\n",
+					")\r\n",
+					"\r\n",
+					"# Execute the MERGE\r\n",
+					"merge_stmt.execute()\r\n",
+					"\r\n",
+					"# For the DELETE operation (rows in target not in source), we need a separate step\r\n",
+					"# First, we identify the rows to delete\r\n",
+					"rows_to_delete = target_table.toDF().alias(\"tgt\").join(\r\n",
+					"    src_df.alias(\"src\"),\r\n",
+					"    (col(\"tgt.visitarchiveid\") == col(\"src.visitarchiveid\")) &\r\n",
+					"    (col(\"tgt.IdOrder\") == col(\"src.DischargeSafeguardingIDOrder\")),\r\n",
+					"    \"leftanti\"\r\n",
+					")\r\n",
+					"\r\n",
+					"# Then we delete these rows\r\n",
+					"if rows_to_delete.count() > 0:\r\n",
+					"    target_table.delete(\r\n",
+					"        condition = \"\"\"\r\n",
+					"        visitarchiveid IN (SELECT visitarchiveid FROM rows_to_delete) AND\r\n",
+					"        IdOrder IN (SELECT IdOrder FROM rows_to_delete)\r\n",
+					"        \"\"\"\r\n",
+					"    )\r\n",
+					"\r\n",
+					"# Log the number of affected rows (optional)\r\n",
+					"affected_rows = target_table.toDF().count()\r\n",
+					"print(f\"Number of rows in the target table after merge: {affected_rows}\")"
+				],
+				"execution_count": null
+			}
+		]
+	}
+}

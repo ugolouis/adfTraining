@@ -1,0 +1,211 @@
+{
+	"name": "21_ECDS_UpdateAllV4_sp",
+	"properties": {
+		"folder": {
+			"name": "ECDS_prod_notebooks"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "6a5c1d90-c196-4def-b43c-5b97ddb92857"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "python"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# "
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# ECDS_UpdateAllV4_sp"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"import datetime\r\n",
+					"\r\n",
+					"def log_step(step_description, step_start):\r\n",
+					"    end_time = datetime.datetime.now()\r\n",
+					"    log_df = spark.createDataFrame([(step_description, step_start, end_time)], [\"StepDescription\", \"StepStart\", \"StepFinish\"])\r\n",
+					"    log_df.write.format(\"delta\").mode(\"append\").saveAsTable(\"ECDS_StoredProc_Log\")\r\n",
+					"\r\n",
+					"def log_error(error_text):\r\n",
+					"    error_df = spark.createDataFrame([(error_text,)], [\"ErrorText\"])\r\n",
+					"    error_df.write.format(\"delta\").mode(\"append\").saveAsTable(\"ECDS_UpdateErrorText\")\r\n",
+					"\r\n",
+					"def run_update_step(step_func, step_name):\r\n",
+					"    step_start = datetime.datetime.now()\r\n",
+					"    try:\r\n",
+					"        step_func()\r\n",
+					"        log_step(step_name, step_start)\r\n",
+					"    except Exception as e:\r\n",
+					"        error_text = f\"{step_name} - {str(e)}\"\r\n",
+					"        log_error(error_text)\r\n",
+					"        print(f\"Error in {step_name}: {str(e)}\")\r\n",
+					"\r\n",
+					"def ecds_update_all():\r\n",
+					"    # Define all update functions here\r\n",
+					"    def update_emergency_visit_part1():\r\n",
+					"        # Implementation for ECDS_EmergencyVisitData_Main_UpdatePart_1_sp\r\n",
+					"        pass\r\n",
+					"\r\n",
+					"    def update_emergency_visit_part2():\r\n",
+					"        # Implementation for ECDS_EmergencyVisitData_Main_UpdatePart_2_sp\r\n",
+					"        pass\r\n",
+					"\r\n",
+					"    def update_emergency_visit_part3():\r\n",
+					"        # Implementation for ECDS_EmergencyVisitData_Main_UpdatePart_3_sp\r\n",
+					"        pass\r\n",
+					"\r\n",
+					"    def update_emergency_visit_reconciliation():\r\n",
+					"        # Implementation for ECDS_EmergencyVisitData_Main_Reconciliation_sp\r\n",
+					"        pass\r\n",
+					"\r\n",
+					"    def update_alcohol_drug():\r\n",
+					"        # Implementation for ECDS_AlcoholDrug_UpdateV3_sp\r\n",
+					"        pass\r\n",
+					"\r\n",
+					"    def update_diagnosis_part1():\r\n",
+					"        # Implementation for ECDS_Diagnosis_Update_Part1_sp\r\n",
+					"        pass\r\n",
+					"\r\n",
+					"    def update_diagnosis_part2():\r\n",
+					"        # Implementation for ECDS_Diagnosis_Update_Part2_sp\r\n",
+					"        pass\r\n",
+					"\r\n",
+					"    def update_comorbidity():\r\n",
+					"        # Implementation for ECDS_Comorbidity_UpdateV2_sp\r\n",
+					"        pass\r\n",
+					"\r\n",
+					"    def update_investigations_part1():\r\n",
+					"        # Implementation for ECDS_Investigations_Update_Part1_sp\r\n",
+					"        pass\r\n",
+					"\r\n",
+					"    def update_investigations_part2():\r\n",
+					"        # Implementation for ECDS_Investigations_Update_Part2_sp\r\n",
+					"        pass\r\n",
+					"\r\n",
+					"    def update_mental_health():\r\n",
+					"        # Implementation for ECDS_MentalHealthActLegalStatusV2_Update_sp\r\n",
+					"        pass\r\n",
+					"\r\n",
+					"    def update_procedure_part1():\r\n",
+					"        # Implementation for ECDS_Procedure_Update_Part1_sp\r\n",
+					"        pass\r\n",
+					"\r\n",
+					"    def update_procedure_part2():\r\n",
+					"        # Implementation for ECDS_Procedure_Update_Part2_sp\r\n",
+					"        pass\r\n",
+					"\r\n",
+					"    def update_referrals():\r\n",
+					"        # Implementation for ECDS_ReferralsToOtherServicesV2_Update_sp\r\n",
+					"        pass\r\n",
+					"\r\n",
+					"    def update_safeguarding():\r\n",
+					"        # Implementation for ECDS_SafeguardingConcernV2_Update_sp\r\n",
+					"        pass\r\n",
+					"\r\n",
+					"    def update_accommodation():\r\n",
+					"        # Implementation for ECDS_Accomodation_Type_UpdateV2_sp\r\n",
+					"        pass\r\n",
+					"\r\n",
+					"    def update_expected_treatment_time():\r\n",
+					"        # Implementation for ECDS_ExpectedDateTimeOfTreatment_Update_sp\r\n",
+					"        pass\r\n",
+					"\r\n",
+					"    def update_coded_clinical_findings():\r\n",
+					"        # Implementation for ECDS_CodedClinicalFindings_Update_sp\r\n",
+					"        pass\r\n",
+					"\r\n",
+					"    def update_coded_clinical_observations():\r\n",
+					"        # Implementation for ECDS_CodedClinicalObservations_Update_sp\r\n",
+					"        pass\r\n",
+					"\r\n",
+					"    def update_coded_scored_assessment():\r\n",
+					"        # Implementation for ECDS_CodedScoredAssessment_Update_sp\r\n",
+					"        pass\r\n",
+					"\r\n",
+					"    def update_pas_no_check():\r\n",
+					"        # Implementation for ECDS_PASNoCheck_sp\r\n",
+					"        pass\r\n",
+					"\r\n",
+					"    def update_grouper():\r\n",
+					"        # Implementation for GrouperInput_updateV2_sp\r\n",
+					"        pass\r\n",
+					"\r\n",
+					"    # Run all update steps\r\n",
+					"    run_update_step(update_emergency_visit_part1, \"Emergency Visit Update part 1\")\r\n",
+					"    run_update_step(update_emergency_visit_part2, \"Emergency Visit Update part 2\")\r\n",
+					"    run_update_step(update_emergency_visit_part3, \"Emergency Visit Update part 3\")\r\n",
+					"    run_update_step(update_emergency_visit_reconciliation, \"Emergency Reconciliation\")\r\n",
+					"    run_update_step(update_alcohol_drug, \"Alcohol Drug Update\")\r\n",
+					"    run_update_step(update_diagnosis_part1, \"Diagnosis Update Part 1\")\r\n",
+					"    run_update_step(update_diagnosis_part2, \"Diagnosis Update Part 2\")\r\n",
+					"    run_update_step(update_comorbidity, \"Comorbidity Update\")\r\n",
+					"    run_update_step(update_investigations_part1, \"Investigations Update Part 1\")\r\n",
+					"    run_update_step(update_investigations_part2, \"Investigations Update Part 2\")\r\n",
+					"    run_update_step(update_mental_health, \"Mental Health Update\")\r\n",
+					"    run_update_step(update_procedure_part1, \"Procedure Update Part 1\")\r\n",
+					"    run_update_step(update_procedure_part2, \"Procedure Update Part 2\")\r\n",
+					"    run_update_step(update_referrals, \"Referrals Update\")\r\n",
+					"    run_update_step(update_safeguarding, \"Safeguarding Update\")\r\n",
+					"    run_update_step(update_accommodation, \"Accommodation Update\")\r\n",
+					"    run_update_step(update_expected_treatment_time, \"Expected Treatment Time\")\r\n",
+					"    run_update_step(update_coded_clinical_findings, \"Coded Clinical Findings\")\r\n",
+					"    run_update_step(update_coded_clinical_observations, \"Coded Clinical Observations\")\r\n",
+					"    run_update_step(update_coded_scored_assessment, \"Coded Scored Assessment\")\r\n",
+					"\r\n",
+					"    # Conditional PAS No Check\r\n",
+					"    current_hour = datetime.datetime.now().hour\r\n",
+					"    if current_hour >= 22:\r\n",
+					"        run_update_step(update_pas_no_check, \"PAS No Check\")\r\n",
+					"\r\n",
+					"    run_update_step(update_grouper, \"Grouper Update\")\r\n",
+					"\r\n",
+					"# In Azure Synapse, this script would be the entire notebook or job\r\n",
+					"ecds_update_all()"
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
