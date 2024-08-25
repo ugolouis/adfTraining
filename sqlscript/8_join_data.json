@@ -1,0 +1,20 @@
+{
+	"name": "8_join_data",
+	"properties": {
+		"folder": {
+			"name": "nyc_taxi/discovery"
+		},
+		"content": {
+			"query": "use nyc_taxi_discovery;\n\n\n\nSELECT\n*\nFROM\n    OPENROWSET(\n        BULK 'trip_data_green_parquet/year=2020/month=01/',\n        FORMAT = 'PARQUET', \n        DATA_SOURCE='nyc_taxi_data_raw'\n    ) AS [result]\n\n    --- checking that the join key is not null\n    SELECT\n*\nFROM\n    OPENROWSET(\n        BULK 'trip_data_green_parquet/year=2020/month=01/',\n        FORMAT = 'PARQUET', \n        DATA_SOURCE='nyc_taxi_data_raw'\n    ) AS [result]\n    WHERE PULocationID  IS NULL\n\n\nSELECT\n      trip_data.*, taxi_zone.*\nFROM\n    OPENROWSET(\n                    BULK 'trip_data_green_parquet/year=2020/month=01/',\n                    FORMAT = 'PARQUET', \n                    DATA_SOURCE='nyc_taxi_data_raw'\n              ) AS [trip_data]\nJOIN \n   OPENROWSET(\n                   BULK 'https://synapsestr.dfs.core.windows.net/nyc-taxi-data/raw/taxi_zone.csv',\n                   FORMAT = 'CSV',\n                   PARSER_VERSION = '2.0',\n                 ---HEADER_ROW = TRUE,\n                   FIRSTROW = 2,\n                   FIELDTERMINATOR = ',',\n                   ROWTERMINATOR = '\\n'\n              ) \n                  WITH (\n                  LocationID SMALLINT,\n                  Borough VARCHAR (15),\n                  Zone VARCHAR (50),\n                 ServiceZone VARCHAR (15) 4\n              ) \n                 AS [taxi_zone]\nON trip_data.PULocationID = [taxi_zone].LocationID\n\n\n-- 2\n\nSELECT\n      taxi_zone.Borough, COUNT(1) AS number_of_boroughs\nFROM\n    OPENROWSET(\n                    BULK 'trip_data_green_parquet/year=2020/month=01/',\n                    FORMAT = 'PARQUET', \n                    DATA_SOURCE='nyc_taxi_data_raw'\n              ) AS [trip_data]\nJOIN \n   OPENROWSET(\n                   BULK 'https://synapsestr.dfs.core.windows.net/nyc-taxi-data/raw/taxi_zone.csv',\n                   FORMAT = 'CSV',\n                   PARSER_VERSION = '2.0',\n                 ---HEADER_ROW = TRUE,\n                   FIRSTROW = 2,\n                   FIELDTERMINATOR = ',',\n                   ROWTERMINATOR = '\\n'\n              ) \n                  WITH (\n                  LocationID SMALLINT,\n                  Borough VARCHAR (15),\n                  Zone VARCHAR (50),\n                 ServiceZone VARCHAR (15) 4\n              ) \n                 AS [taxi_zone]\nON trip_data.PULocationID = [taxi_zone].LocationID\nGROUP BY taxi_zone.Borough\nORDER BY COUNT(1)",
+			"metadata": {
+				"language": "sql"
+			},
+			"currentConnection": {
+				"databaseName": "nyc_taxi_discovery",
+				"poolName": "Built-in"
+			},
+			"resultLimit": 5000
+		},
+		"type": "SqlQuery"
+	}
+}
