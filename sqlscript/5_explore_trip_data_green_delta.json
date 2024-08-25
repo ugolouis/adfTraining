@@ -1,16 +1,16 @@
 {
-	"name": "5_explore_trip_data_delta",
+	"name": "5_explore_trip_data_green_delta",
 	"properties": {
 		"folder": {
 			"name": "nyc_taxi/discovery"
 		},
 		"content": {
-			"query": "",
+			"query": "use nyc_taxi_discovery;\n\n\nSELECT \n    TOP 100 *\nFROM OPENROWSET(\n    BULK 'trip_data_green_delta/',\n    DATA_SOURCE = 'nyc_taxi_data_raw',\n    FORMAT = 'DELTA'\n) AS [trip_data];\n\n---- selecting sub data\nSELECT \n    TOP 100 *\nFROM OPENROWSET(\n    BULK 'trip_data_green_delta/',\n    DATA_SOURCE = 'nyc_taxi_data_raw',\n    FORMAT = 'DELTA'\n) \nWITH (\n    trip_mount FLOAT,\n    trip_type INT,\n    year VARCHAR(4),\n    month VARCHAR(2)\n    ) \n    AS [trip_data];\n\n    ---- target specific parition\n\n    SELECT COUNT(DISTINCT payment_type)\nFROM OPENROWSET(\n    BULK 'trip_data_green_delta/',\n    DATA_SOURCE = 'nyc_taxi_data_raw',\n    FORMAT = 'DELTA'\n) \n AS [trip_data];\n\n\n--- targetting specific year\n\n\nSELECT COUNT(DISTINCT payment_type)\nFROM OPENROWSET(\n    BULK 'trip_data_green_delta/',\n    DATA_SOURCE = 'nyc_taxi_data_raw',\n    FORMAT = 'DELTA'\n) \n AS [trip_data]\n WHERE year = '2020' AND month = '01'\n",
 			"metadata": {
 				"language": "sql"
 			},
 			"currentConnection": {
-				"databaseName": "master",
+				"databaseName": "nyc_taxi_discovery",
 				"poolName": "Built-in"
 			},
 			"resultLimit": 5000
