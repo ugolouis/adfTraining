@@ -1,0 +1,20 @@
+{
+	"name": "3_external_file_format",
+	"properties": {
+		"folder": {
+			"name": "nyc_taxi/ldw"
+		},
+		"content": {
+			"query": "USE nyc_taxi_ldw\n\nGO\n\nCREATE EXTERNAL FILE FORMAT csv_file_format\n\nWITH (\n             FORMAT_TYPE = DELIMITEDTEXT ,\n\t         FORMAT_OPTIONS (\n\t\t\t FIELD_TERMINATOR = ',',\n             STRING_DELIMITER = '\"',\n             FIRST_ROW = 2,\n             ENCODING = 'UTF8',\n\t\t\t USE_TYPE_DEFAULT = FALSE,\n             PARSER_VERSION = '2.0')\n)\nGO\n\nDROP EXTERNAL FILE FORMAT csv_file_format;",
+			"metadata": {
+				"language": "sql"
+			},
+			"currentConnection": {
+				"databaseName": "nyc_taxi_ldw",
+				"poolName": "Built-in"
+			},
+			"resultLimit": 5000
+		},
+		"type": "SqlQuery"
+	}
+}

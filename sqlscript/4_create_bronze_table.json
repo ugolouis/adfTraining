@@ -1,0 +1,20 @@
+{
+	"name": "4_create_bronze_table",
+	"properties": {
+		"folder": {
+			"name": "nyc_taxi/ldw"
+		},
+		"content": {
+			"query": "USE nyc_taxi_ldw\n\nGO\n\n-- Create a new external table\nCREATE EXTERNAL TABLE bronze.taxi_zone\n    (    LocationID SMALLINT,\n        Borough VARCHAR (15),\n        Zone VARCHAR (50),\n        service_zone VARCHAR (15))\n    WITH (\n        LOCATION = 'raw/taxi_zone.csv',\n        DATA_SOURCE = nyc_taxi_ldw,\n       FILE_FORMAT = csv_file_format\n     );\n\n     SELECT * FROM bronze.taxi_zone\n     GO\n",
+			"metadata": {
+				"language": "sql"
+			},
+			"currentConnection": {
+				"databaseName": "nyc_taxi_ldw",
+				"poolName": "Built-in"
+			},
+			"resultLimit": 5000
+		},
+		"type": "SqlQuery"
+	}
+}
