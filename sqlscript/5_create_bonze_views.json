@@ -1,11 +1,11 @@
 {
-	"name": "5_assignment",
+	"name": "5_create_bonze_views",
 	"properties": {
 		"folder": {
 			"name": "nyc_taxi/ldw"
 		},
 		"content": {
-			"query": "use nyc_taxi_ldw\nGO\n\nIF OBJECT_ID ('bronze.calendar') IS NOT NULL\n      DROP EXTERNAL TABLE bronze.calendar;\n\n\n-- Create a new external table\n-- CREATE EXTERNAL TABLE bronze.calendar\n--     (    date_key SMALLINT,\n--         Borough VARCHAR (15),\n--         Zone VARCHAR (50),\n--         service_zone VARCHAR (15))\n--     WITH (\n--         LOCATION = 'raw/taxi_zone.csv',\n--         DATA_SOURCE = nyc_taxi_ldw,\n--        FILE_FORMAT = csv_file_format_pv1,\n--        REJECT_VALUE = 10,\n--        REJECTED_ROW_LOCATION = 'rejections/taxi_zone'\n--      );\n\n--      SELECT * FROM bronze.taxi_zone\n--      GO",
+			"query": "USE nyc_taxi_ldw\nGO\n\nDROP VIEW IF EXISTS bronze.vw_rate_code \nGO\n\n\nCREATE VIEW bronze.vw_rate_code\nAS\nSELECT rate_code_id, rate_code\nFROM\n    OPENROWSET(\n        BULK '/raw/rate_code.json',\n        DATA_SOURCE = 'nyc_taxi_ldw',\n        FORMAT = 'CSV',\n        PARSER_VERSION = '1.0',\n        FIELDQUOTE = '0x0b',\n        FIELDTERMINATOR ='0x0b',\n        ROWTERMINATOR = '0x0b'\n    )\n    WITH \n    (\n        jsonContent varchar(MAX)\n    ) AS rate_code\n    CROSS APPLY OPENJSON(jsonContent)\n    WITH (\n \n       rate_code_id TINYINT, \n       rate_code VARCHAR(20)\n    )\n    GO\n\n\nSELECT * FROM bronze.vw_rate_code",
 			"metadata": {
 				"language": "sql"
 			},
