@@ -1,0 +1,83 @@
+{
+	"name": "0_create_source_tables",
+	"properties": {
+		"folder": {
+			"name": "ECDS_prod_notebooks"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "c1b3b2c4-941c-4e25-b8f1-0aee86b43d20"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "python"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"### Create ECDS_Accomodation_Type table"
+				]
+			},
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql.functions import current_timestamp\n",
+					"from pyspark.sql.types import StructType, StructField, IntegerType, StringType, TimestampType\n",
+					"\n",
+					"# Define the schema for the table\n",
+					"schema = StructType([\n",
+					"    StructField(\"visitarchiveid\", IntegerType(), nullable=False),\n",
+					"    StructField(\"IdOrder\", IntegerType(), nullable=True),\n",
+					"    StructField(\"AccomodationTypeDesc\", StringType(), nullable=True),\n",
+					"    StructField(\"AccomodationDateAdded\", TimestampType(), nullable=True),\n",
+					"    StructField(\"AccomodationTypeSNOMED\", StringType(), nullable=True),\n",
+					"    StructField(\"InsertedOn\", TimestampType(), nullable=True),\n",
+					"    StructField(\"AmendOn\", TimestampType(), nullable=True)\n",
+					"])\n",
+					"\n",
+					"# Create an empty DataFrame with the defined schema\n",
+					"df = spark.createDataFrame([], schema)\n",
+					"\n",
+					"# Add the InsertedOn column with the current timestamp as default\n",
+					"df = df.withColumn(\"InsertedOn\", current_timestamp())\n",
+					"\n",
+					"# Define the path for the Delta table\n",
+					"delta_table_path = \"abfss://Curated@dlsrxcdevuksdp01.dfs.core.windows.net/ESHT/ECDS/ECDS_Accomodation_Type\"\n",
+					"\n",
+					"# Write the DataFrame as a Delta table\n",
+					"df.write.format(\"delta\").mode(\"overwrite\").save(delta_table_path)\n",
+					"\n",
+					"print(\"Delta table ECDS_Accomodation_Type created successfully.\")"
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
