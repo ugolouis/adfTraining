@@ -1,0 +1,81 @@
+{
+	"name": "8_nb_CDS_EmergencyVisitData_Main_Reconciliation",
+	"properties": {
+		"folder": {
+			"name": "create_source_tables/ECDS_spark_sql_notebooks"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "c37d9480-af7a-4443-b23e-9d68f4b5a776"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "python"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql.functions import col\r\n",
+					"from delta.tables import DeltaTable\r\n",
+					"\r\n",
+					"# Define paths\r\n",
+					"storage_account_name = \"synapsestr\"\r\n",
+					"delta_container_name = \"nervecentre-delta\"\r\n",
+					"main_table_path = f'abfss://{delta_container_name}@{storage_account_name}.dfs.core.windows.net/ECDS_EmergencyVisitData_Main'\r\n",
+					"history_table_path = f'abfss://{delta_container_name}@{storage_account_name}.dfs.core.windows.net/SPB/PatientVisitHistoryData_Current'\r\n",
+					"\r\n",
+					"# Read tables\r\n",
+					"main_table = DeltaTable.forPath(spark, main_table_path)\r\n",
+					"history_df = spark.read.format(\"delta\").load(history_table_path)\r\n",
+					"\r\n",
+					"# Register temporary views for main and history tables\r\n",
+					"main_table.toDF().createOrReplaceTempView(\"main_table\")\r\n",
+					"history_df.createOrReplaceTempView(\"history_table\")\r\n",
+					"\r\n",
+					"# Identify records to delete using Spark SQL\r\n",
+					"delete_sql = \"\"\"\r\n",
+					"SELECT m.visitarchiveid\r\n",
+					"FROM main_table m\r\n",
+					"LEFT ANTI JOIN history_table h ON m.visitarchiveid = h.visitarchiveid\r\n",
+					"\"\"\"\r\n",
+					"\r\n",
+					"to_delete = spark.sql(delete_sql)\r\n",
+					"to_delete.createOrReplaceTempView(\"to_delete\")\r\n",
+					"\r\n",
+					"# Perform the delete operation using Spark SQL\r\n",
+					"delete_operation_sql = \"\"\"\r\n",
+					"DELETE FROM main_table\r\n",
+					"WHERE visitarchiveid IN (SELECT visitarchiveid FROM to_delete)\r\n",
+					"\"\"\"\r\n",
+					"\r\n",
+					"spark.sql(delete_operation_sql)\r\n",
+					"\r\n",
+					"# Log the number of deleted rows (optional)\r\n",
+					"deleted_rows = spark.sql(\"SELECT COUNT(*) as count FROM to_delete\").collect()[0]['count']\r\n",
+					"print(f\"Number of rows deleted: {deleted_rows}\")"
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
