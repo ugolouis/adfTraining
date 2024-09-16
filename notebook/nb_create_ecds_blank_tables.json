@@ -6,6 +6,10 @@
 		},
 		"nbformat": 4,
 		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "esht",
+			"type": "BigDataPoolReference"
+		},
 		"sessionProperties": {
 			"driverMemory": "28g",
 			"driverCores": 4,
@@ -16,7 +20,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "eb072776-6e84-4792-990c-98d5daf1f4b6"
+				"spark.autotune.trackingId": "7278119b-ac66-42ed-93a3-bf6ac90b6779"
 			}
 		},
 		"metadata": {
@@ -24,10 +28,25 @@
 			"enableDebugMode": false,
 			"kernelspec": {
 				"name": "synapse_pyspark",
-				"display_name": "python"
+				"display_name": "Synapse PySpark"
 			},
 			"language_info": {
 				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/f6e89fe8-0d17-497c-9795-5ecb2ab3bbcc/resourceGroups/SynapseRG/providers/Microsoft.Synapse/workspaces/ugolouis-synapse-ws/bigDataPools/esht",
+				"name": "esht",
+				"type": "Spark",
+				"endpoint": "https://ugolouis-synapse-ws.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/esht",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.4",
+				"nodeCount": 10,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
