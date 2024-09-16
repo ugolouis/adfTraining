@@ -16,7 +16,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "40c130fd-4145-4c92-85d9-9f1940e7a95a"
+				"spark.autotune.trackingId": "70aef43c-e75b-435f-92ef-ec3cc0deefb2"
 			}
 		},
 		"metadata": {
@@ -686,6 +686,567 @@
 					"try:\r\n",
 					"    df.write.format(\"delta\").mode(\"overwrite\").option(\"overwriteSchema\", \"true\").save(delta_table_path)\r\n",
 					"    print(\"Delta table ECDS_EMED3_Fit_Note created successfully.\")\r\n",
+					"    \r\n",
+					"    # Verify the table was created\r\n",
+					"    if DeltaTable.isDeltaTable(spark, delta_table_path):\r\n",
+					"        print(\"Verified: The table is a valid Delta table.\")\r\n",
+					"    else:\r\n",
+					"        print(\"Warning: The table doesn't seem to be a valid Delta table.\")\r\n",
+					"\r\n",
+					"except Exception as e:\r\n",
+					"    print(f\"Error creating Delta table: {str(e)}\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"### create CDS_ExpectedDateTimeOfTreatment table"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Define the schema for the table\r\n",
+					"schema = StructType([\r\n",
+					"    StructField(\"visitarchiveid\", IntegerType(), nullable=False),\r\n",
+					"    StructField(\"Emergency_Care_Expected_Timestamp\", TimestampType(), nullable=True),\r\n",
+					"    StructField(\"Emergency_Care_Treatment_Timestamp\", TimestampType(), nullable=True),\r\n",
+					"    StructField(\"InsertedOn\", TimestampType(), nullable=False)\r\n",
+					"])\r\n",
+					"\r\n",
+					"# Create an empty DataFrame with the defined schema\r\n",
+					"df = spark.createDataFrame([], schema)\r\n",
+					"\r\n",
+					"# Add the InsertedOn column with the current timestamp as default\r\n",
+					"df = df.withColumn(\"InsertedOn\", current_timestamp())\r\n",
+					"\r\n",
+					"# Define the path for the Delta table\r\n",
+					"delta_table_path = \"abfss://curated@louisstr.dfs.core.windows.net/ESHT/ECDS/ECDS_ExpectedDateTimeOfTreatment\"\r\n",
+					"\r\n",
+					"# Write the DataFrame as a Delta table with error handling\r\n",
+					"try:\r\n",
+					"    df.write.format(\"delta\").mode(\"overwrite\").option(\"overwriteSchema\", \"true\").save(delta_table_path)\r\n",
+					"    print(\"Delta table ECDS_ExpectedDateTimeOfTreatment created successfully.\")\r\n",
+					"    \r\n",
+					"    # Verify the table was created\r\n",
+					"    if DeltaTable.isDeltaTable(spark, delta_table_path):\r\n",
+					"        print(\"Verified: The table is a valid Delta table.\")\r\n",
+					"    else:\r\n",
+					"        print(\"Warning: The table doesn't seem to be a valid Delta table.\")\r\n",
+					"\r\n",
+					"except Exception as e:\r\n",
+					"    print(f\"Error creating Delta table: {str(e)}\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"### Create ECDS_Investigations table"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Define the schema for the table\r\n",
+					"schema = StructType([\r\n",
+					"    StructField(\"visitarchiveid\", IntegerType(), nullable=False),\r\n",
+					"    StructField(\"InvestigationOrder\", IntegerType(), nullable=False),\r\n",
+					"    StructField(\"InvestigationDesc\", StringType(), nullable=True),\r\n",
+					"    StructField(\"EC_Investigation_Date_Time\", TimestampType(), nullable=True),\r\n",
+					"    StructField(\"EC_InvestigationCodeSNOMED\", StringType(), nullable=True),\r\n",
+					"    StructField(\"EC_InvestigationCodeCDS\", StringType(), nullable=True),\r\n",
+					"    StructField(\"InsertedOn\", TimestampType(), nullable=True),\r\n",
+					"    StructField(\"AmendedOn\", TimestampType(), nullable=True)\r\n",
+					"])\r\n",
+					"\r\n",
+					"# Create an empty DataFrame with the defined schema\r\n",
+					"df = spark.createDataFrame([], schema)\r\n",
+					"\r\n",
+					"# Add the InsertedOn column with the current timestamp as default\r\n",
+					"df = df.withColumn(\"InsertedOn\", current_timestamp())\r\n",
+					"\r\n",
+					"# Define the path for the Delta table\r\n",
+					"delta_table_path = \"abfss://curated@louisstr.dfs.core.windows.net/ESHT/ECDS/ECDS_Investigations\"\r\n",
+					"\r\n",
+					"# Write the DataFrame as a Delta table with error handling\r\n",
+					"try:\r\n",
+					"    df.write.format(\"delta\").mode(\"overwrite\").option(\"overwriteSchema\", \"true\").save(delta_table_path)\r\n",
+					"    print(\"Delta table ECDS_Investigations created successfully.\")\r\n",
+					"    \r\n",
+					"    # Verify the table was created\r\n",
+					"    if DeltaTable.isDeltaTable(spark, delta_table_path):\r\n",
+					"        print(\"Verified: The table is a valid Delta table.\")\r\n",
+					"    else:\r\n",
+					"        print(\"Warning: The table doesn't seem to be a valid Delta table.\")\r\n",
+					"\r\n",
+					"except Exception as e:\r\n",
+					"    print(f\"Error creating Delta table: {str(e)}\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"### Create ECDS_MentalHealthActLegalStatus table"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Define the schema for the table\r\n",
+					"schema = StructType([\r\n",
+					"    StructField(\"visitarchiveid\", IntegerType(), nullable=False),\r\n",
+					"    StructField(\"IdOrder\", IntegerType(), nullable=True),\r\n",
+					"    StructField(\"MHA_LSCP_Start_Date_Time\", TimestampType(), nullable=True),\r\n",
+					"    StructField(\"MHA_LSCP_Expiry_Date_Time\", TimestampType(), nullable=True),\r\n",
+					"    StructField(\"MHA_LegalStatusClassifactionCode\", StringType(), nullable=False),\r\n",
+					"    StructField(\"MHA_LegalStatusClassifactionDesc\", StringType(), nullable=True),\r\n",
+					"    StructField(\"InsertedOn\", TimestampType(), nullable=False),\r\n",
+					"    StructField(\"AmendOn\", TimestampType(), nullable=True)\r\n",
+					"])\r\n",
+					"\r\n",
+					"# Create an empty DataFrame with the defined schema\r\n",
+					"df = spark.createDataFrame([], schema)\r\n",
+					"\r\n",
+					"# Add the InsertedOn column with the current timestamp as default\r\n",
+					"df = df.withColumn(\"InsertedOn\", current_timestamp())\r\n",
+					"\r\n",
+					"# Define the path for the Delta table\r\n",
+					"delta_table_path = \"abfss://curated@louisstr.dfs.core.windows.net/ESHT/ECDS/ECDS_MentalHealthActLegalStatus\"\r\n",
+					"\r\n",
+					"# Write the DataFrame as a Delta table with error handling\r\n",
+					"try:\r\n",
+					"    df.write.format(\"delta\").mode(\"overwrite\").option(\"overwriteSchema\", \"true\").save(delta_table_path)\r\n",
+					"    print(\"Delta table ECDS_MentalHealthActLegalStatus created successfully.\")\r\n",
+					"    \r\n",
+					"    # Verify the table was created\r\n",
+					"    if DeltaTable.isDeltaTable(spark, delta_table_path):\r\n",
+					"        print(\"Verified: The table is a valid Delta table.\")\r\n",
+					"    else:\r\n",
+					"        print(\"Warning: The table doesn't seem to be a valid Delta table.\")\r\n",
+					"\r\n",
+					"except Exception as e:\r\n",
+					"    print(f\"Error creating Delta table: {str(e)}\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"### Create ECDS_Personal_Circumstances table"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Define the schema for the table\r\n",
+					"schema = StructType([\r\n",
+					"    StructField(\"visitarchiveid\", IntegerType(), nullable=False),\r\n",
+					"    StructField(\"Soc_Per_SNOMED\", StringType(), nullable=True),\r\n",
+					"    StructField(\"Soc_Per_Description\", StringType(), nullable=True),\r\n",
+					"    StructField(\"Soc_Per_Timestamp\", TimestampType(), nullable=True),\r\n",
+					"    StructField(\"InsertedOn\", TimestampType(), nullable=False),\r\n",
+					"    StructField(\"AmendOn\", TimestampType(), nullable=True)\r\n",
+					"])\r\n",
+					"\r\n",
+					"# Create an empty DataFrame with the defined schema\r\n",
+					"df = spark.createDataFrame([], schema)\r\n",
+					"\r\n",
+					"# Add the InsertedOn column with the current timestamp as default\r\n",
+					"df = df.withColumn(\"InsertedOn\", current_timestamp())\r\n",
+					"\r\n",
+					"# Define the path for the Delta table\r\n",
+					"delta_table_path = \"abfss://curated@louisstr.dfs.core.windows.net/ESHT/ECDS/ECDS_Personal_Circumstances\"\r\n",
+					"\r\n",
+					"# Write the DataFrame as a Delta table with error handling\r\n",
+					"try:\r\n",
+					"    df.write.format(\"delta\").mode(\"overwrite\").option(\"overwriteSchema\", \"true\").save(delta_table_path)\r\n",
+					"    print(\"Delta table ECDS_Personal_Circumstances created successfully.\")\r\n",
+					"    \r\n",
+					"    # Verify the table was created\r\n",
+					"    if DeltaTable.isDeltaTable(spark, delta_table_path):\r\n",
+					"        print(\"Verified: The table is a valid Delta table.\")\r\n",
+					"    else:\r\n",
+					"        print(\"Warning: The table doesn't seem to be a valid Delta table.\")\r\n",
+					"\r\n",
+					"except Exception as e:\r\n",
+					"    print(f\"Error creating Delta table: {str(e)}\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"### Create ECDS_Procedure table"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Define the schema for the table\r\n",
+					"schema = StructType([\r\n",
+					"    StructField(\"visitarchiveid\", IntegerType(), nullable=False),\r\n",
+					"    StructField(\"ProcedureOrder\", LongType(), nullable=True),\r\n",
+					"    StructField(\"ProcedureDesc\", StringType(), nullable=True),\r\n",
+					"    StructField(\"EC_Procedure_Date_Time\", TimestampType(), nullable=True),\r\n",
+					"    StructField(\"EC_ProcedureCodeSNOMED\", StringType(), nullable=True),\r\n",
+					"    StructField(\"EC_ProcedureCodeCDS\", StringType(), nullable=True),\r\n",
+					"    StructField(\"InsertedOn\", TimestampType(), nullable=True),\r\n",
+					"    StructField(\"AmendOn\", TimestampType(), nullable=True)\r\n",
+					"])\r\n",
+					"\r\n",
+					"# Create an empty DataFrame with the defined schema\r\n",
+					"df = spark.createDataFrame([], schema)\r\n",
+					"\r\n",
+					"# Add the InsertedOn column with the current timestamp as default\r\n",
+					"df = df.withColumn(\"InsertedOn\", current_timestamp())\r\n",
+					"\r\n",
+					"# Define the path for the Delta table\r\n",
+					"delta_table_path = \"abfss://curated@louisstr.dfs.core.windows.net/ESHT/ECDS/ECDS_Procedure\"\r\n",
+					"\r\n",
+					"# Write the DataFrame as a Delta table with error handling\r\n",
+					"try:\r\n",
+					"    df.write.format(\"delta\").mode(\"overwrite\").option(\"overwriteSchema\", \"true\").save(delta_table_path)\r\n",
+					"    print(\"Delta table ECDS_Procedure created successfully.\")\r\n",
+					"    \r\n",
+					"    # Verify the table was created\r\n",
+					"    if DeltaTable.isDeltaTable(spark, delta_table_path):\r\n",
+					"        print(\"Verified: The table is a valid Delta table.\")\r\n",
+					"    else:\r\n",
+					"        print(\"Warning: The table doesn't seem to be a valid Delta table.\")\r\n",
+					"\r\n",
+					"except Exception as e:\r\n",
+					"    print(f\"Error creating Delta table: {str(e)}\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"### Create ECDS_ReferralsToOtherServices table"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Define the schema for the table\r\n",
+					"schema = StructType([\r\n",
+					"    StructField(\"visitarchiveid\", IntegerType(), nullable=False),\r\n",
+					"    StructField(\"Referred_To_Service_Order\", IntegerType(), nullable=True),\r\n",
+					"    StructField(\"Referred_To_Service_Code\", StringType(), nullable=False),\r\n",
+					"    StructField(\"Referred_To_Service_Desc\", StringType(), nullable=True),\r\n",
+					"    StructField(\"Activity_Service_Request_Date_Time\", TimestampType(), nullable=True),\r\n",
+					"    StructField(\"Referred_To_Service_Assess_Date_Time\", TimestampType(), nullable=True),\r\n",
+					"    StructField(\"InsertedOn\", TimestampType(), nullable=False),\r\n",
+					"    StructField(\"AmendOn\", TimestampType(), nullable=True)\r\n",
+					"])\r\n",
+					"\r\n",
+					"# Create an empty DataFrame with the defined schema\r\n",
+					"df = spark.createDataFrame([], schema)\r\n",
+					"\r\n",
+					"# Add the InsertedOn column with the current timestamp as default\r\n",
+					"df = df.withColumn(\"InsertedOn\", current_timestamp())\r\n",
+					"\r\n",
+					"# Define the path for the Delta table\r\n",
+					"delta_table_path = \"abfss://curated@louisstr.dfs.core.windows.net/ESHT/ECDS/ECDS_ReferralsToOtherServices\"\r\n",
+					"\r\n",
+					"# Write the DataFrame as a Delta table with error handling\r\n",
+					"try:\r\n",
+					"    df.write.format(\"delta\").mode(\"overwrite\").option(\"overwriteSchema\", \"true\").save(delta_table_path)\r\n",
+					"    print(\"Delta table ECDS_ReferralsToOtherServices created successfully.\")\r\n",
+					"    \r\n",
+					"    # Verify the table was created\r\n",
+					"    if DeltaTable.isDeltaTable(spark, delta_table_path):\r\n",
+					"        print(\"Verified: The table is a valid Delta table.\")\r\n",
+					"    else:\r\n",
+					"        print(\"Warning: The table doesn't seem to be a valid Delta table.\")\r\n",
+					"\r\n",
+					"except Exception as e:\r\n",
+					"    print(f\"Error creating Delta table: {str(e)}\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"### Create ECDS_SafeguardingConcern table"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Define the schema for the table\r\n",
+					"schema = StructType([\r\n",
+					"    StructField(\"visitarchiveid\", IntegerType(), nullable=False),\r\n",
+					"    StructField(\"IdOrder\", IntegerType(), nullable=True),\r\n",
+					"    StructField(\"Safeguarding_Concern\", StringType(), nullable=False),\r\n",
+					"    StructField(\"Safeguarding_Concern_Desc\", StringType(), nullable=True),\r\n",
+					"    StructField(\"InsertedOn\", TimestampType(), nullable=False),\r\n",
+					"    StructField(\"AmendOn\", TimestampType(), nullable=True)\r\n",
+					"])\r\n",
+					"\r\n",
+					"# Create an empty DataFrame with the defined schema\r\n",
+					"df = spark.createDataFrame([], schema)\r\n",
+					"\r\n",
+					"# Add the InsertedOn column with the current timestamp as default\r\n",
+					"df = df.withColumn(\"InsertedOn\", current_timestamp())\r\n",
+					"\r\n",
+					"# Define the path for the Delta table\r\n",
+					"delta_table_path = \"abfss://curated@louisstr.dfs.core.windows.net/ESHT/ECDS/ECDS_SafeguardingConcern\"\r\n",
+					"\r\n",
+					"# Write the DataFrame as a Delta table with error handling\r\n",
+					"try:\r\n",
+					"    df.write.format(\"delta\").mode(\"overwrite\").option(\"overwriteSchema\", \"true\").save(delta_table_path)\r\n",
+					"    print(\"Delta table ECDS_SafeguardingConcern created successfully.\")\r\n",
+					"    \r\n",
+					"    # Verify the table was created\r\n",
+					"    if DeltaTable.isDeltaTable(spark, delta_table_path):\r\n",
+					"        print(\"Verified: The table is a valid Delta table.\")\r\n",
+					"    else:\r\n",
+					"        print(\"Warning: The table doesn't seem to be a valid Delta table.\")\r\n",
+					"\r\n",
+					"except Exception as e:\r\n",
+					"    print(f\"Error creating Delta table: {str(e)}\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"### Create ECDS_StoredProc_Log table"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Define the schema for the table\r\n",
+					"schema = StructType([\r\n",
+					"    StructField(\"LogID\", IntegerType(), nullable=False),\r\n",
+					"    StructField(\"StepDescription\", StringType(), nullable=True),\r\n",
+					"    StructField(\"StepStart\", TimestampType(), nullable=True),\r\n",
+					"    StructField(\"StepFinish\", TimestampType(), nullable=True),\r\n",
+					"    StructField(\"StepDurationSecs\", LongType(), nullable=True)\r\n",
+					"])\r\n",
+					"\r\n",
+					"# Create an empty DataFrame with the defined schema\r\n",
+					"df = spark.createDataFrame([], schema)\r\n",
+					"\r\n",
+					"# Add the computed column StepDurationSecs\r\n",
+					"df = df.withColumn(\"StepDurationSecs\", \r\n",
+					"                   expr(\"cast(unix_timestamp(StepFinish) - unix_timestamp(StepStart) as long)\"))\r\n",
+					"\r\n",
+					"# Define the path for the Delta table\r\n",
+					"delta_table_path = \"abfss://curated@louisstr.dfs.core.windows.net/ESHT/ECDS/ECDS_StoredProc_Log\"\r\n",
+					"\r\n",
+					"# Write the DataFrame as a Delta table with error handling\r\n",
+					"try:\r\n",
+					"    df.write.format(\"delta\").mode(\"overwrite\").option(\"overwriteSchema\", \"true\").save(delta_table_path)\r\n",
+					"    print(\"Delta table ECDS_StoredProc_Log created successfully.\")\r\n",
+					"    \r\n",
+					"    # Verify the table was created\r\n",
+					"    if DeltaTable.isDeltaTable(spark, delta_table_path):\r\n",
+					"        print(\"Verified: The table is a valid Delta table.\")\r\n",
+					"    else:\r\n",
+					"        print(\"Warning: The table doesn't seem to be a valid Delta table.\")\r\n",
+					"\r\n",
+					"except Exception as e:\r\n",
+					"    print(f\"Error creating Delta table: {str(e)}\")"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"### Create ECDS_UpdateErrorText table"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Define the schema for the table\r\n",
+					"schema = StructType([\r\n",
+					"    StructField(\"RunId\", IntegerType(), nullable=False),\r\n",
+					"    StructField(\"ErrorText\", StringType(), nullable=True),\r\n",
+					"    StructField(\"InsertedOn\", TimestampType(), nullable=False)\r\n",
+					"])\r\n",
+					"\r\n",
+					"# Create an empty DataFrame with the defined schema\r\n",
+					"df = spark.createDataFrame([], schema)\r\n",
+					"\r\n",
+					"# Add the InsertedOn column with the current timestamp as default\r\n",
+					"df = df.withColumn(\"InsertedOn\", current_timestamp())\r\n",
+					"\r\n",
+					"# Define the path for the Delta table\r\n",
+					"delta_table_path = \"abfss://curated@louisstr.dfs.core.windows.net/ESHT/ECDS/ECDS_UpdateErrorText\"\r\n",
+					"\r\n",
+					"# Write the DataFrame as a Delta table with error handling\r\n",
+					"try:\r\n",
+					"    df.write.format(\"delta\").mode(\"overwrite\").option(\"overwriteSchema\", \"true\").save(delta_table_path)\r\n",
+					"    print(\"Delta table ECDS_UpdateErrorText created successfully.\")\r\n",
 					"    \r\n",
 					"    # Verify the table was created\r\n",
 					"    if DeltaTable.isDeltaTable(spark, delta_table_path):\r\n",
